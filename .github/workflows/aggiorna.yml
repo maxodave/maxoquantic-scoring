@@ -17,12 +17,15 @@ name: Aggiorna i dati
 
 on:
   schedule:
-    # Gli orari cron di GitHub sono in UTC e non seguono l'ora legale: qui
-    # sotto sono indicati sia in EDT (marzo-novembre) sia in EST (inverno).
-    - cron: "10 12 * * 1-5"   # 08:10 EDT / 07:10 EST — pre-mercato presto
-    - cron: "10 14 * * 1-5"   # 10:10 EDT / 09:10 EST — pre-mercato, vicino all'apertura
-    - cron: "30 20 * * 1-5"   # 16:30 EDT / 15:30 EST — subito dopo la chiusura
-    - cron: "30 22 * * 1-5"   # 18:30 EDT / 17:30 EST — chiusura consolidata
+    # Gli orari cron di GitHub sono in UTC e NON seguono l'ora legale: un
+    # orario che d'estate cade nel pre-mercato, d'inverno cade un'ora prima.
+    # Questi quattro sono scelti perche' restino nella fascia giusta in
+    # entrambe le stagioni — la borsa di New York apre alle 9:30 e chiude
+    # alle 16:00, ora locale.
+    - cron: "30 11 * * 1-5"   # 07:30 EDT / 06:30 EST — pre-mercato, presto
+    - cron: "15 13 * * 1-5"   # 09:15 EDT / 08:15 EST — pre-mercato, poco prima dell'apertura
+    - cron: "15 21 * * 1-5"   # 17:15 EDT / 16:15 EST — a borsa chiusa
+    - cron: "0  23 * * 1-5"   # 19:00 EDT / 18:00 EST — chiusura consolidata
   workflow_dispatch:
     inputs:
       cosa:
