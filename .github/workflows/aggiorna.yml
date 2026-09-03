@@ -90,12 +90,19 @@ jobs:
         working-directory: motore
         run: python costruisci_pagina_autonoma.py -o ../index.html
 
-      - name: Pubblica se e' cambiato qualcosa
+      # Non basta confrontare i file: ogni corsa riscrive l'ora in cui il
+      # motore ha girato, anche quando ogni numero e' arrivato dalla cache.
+      # Si confrontano i dati, quindi, non l'orologio — altrimenti sono
+      # quattro commit e quattro ricostruzioni del sito al giorno per nulla.
+      - name: Vale la pena pubblicare?
+        id: verdetto
         run: |
-          if git diff --quiet -- index.html; then
-            echo "La pagina e' identica: niente da pubblicare."
-            exit 0
-          fi
+          git show HEAD:index.html > /tmp/pubblicata.html 2>/dev/null || true
+          python motore/serve_pubblicare.py --nuova index.html --vecchia /tmp/pubblicata.html
+
+      - name: Pubblica
+        if: steps.verdetto.outputs.pubblicare == 'si'
+        run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
@@ -113,4 +120,5 @@ jobs:
             echo "| chiusura | ${{ steps.scelta.outputs.chiusura }} |"
             echo "| pre-mercato | ${{ steps.scelta.outputs.premercato }} |"
             echo "| file in cache | $(find motore/.cache -type f 2>/dev/null | wc -l) |"
+            echo "| pubblicata | ${{ steps.verdetto.outputs.pubblicare }} — ${{ steps.verdetto.outputs.perche }} |"
           } >> "$GITHUB_STEP_SUMMARY"
