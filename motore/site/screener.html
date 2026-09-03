@@ -348,8 +348,8 @@ details.sk-fold>summary{cursor:pointer; color:var(--ink2); font-size:13px; paddi
 <header class="site-nav" id="siteNav">
   <div class="brand"><span aria-hidden="true">&#128640;</span> <span id="nav-brand" data-i18n="nav_brand">Maxoquantic Scoring</span></div>
   <nav class="nav-links" aria-label="Sezioni">
-    <button type="button" class="nav-link active" data-vista="chiusura" id="nav-chiusura" data-i18n="nav_chiusura">Chiusura di ieri</button>
-    <button type="button" class="nav-link live-link" data-vista="premarket" id="nav-premarket"><span class="live-dot"></span><span data-i18n="nav_pre">Pre-mercato</span></button>
+    <button type="button" class="nav-link live-link active" data-vista="chiusura" id="nav-chiusura"><span class="live-dot" id="punto-chiusura" hidden></span><span id="etichetta-chiusura">Chiusura</span></button>
+    <button type="button" class="nav-link live-link" data-vista="premarket" id="nav-premarket"><span class="live-dot" id="punto-pre" hidden></span><span data-i18n="nav_pre">Pre-mercato</span></button>
   </nav>
   <div class="lang-toggle" id="langToggle">
     <div class="lang-chip" data-lang="en">EN</div>
@@ -553,7 +553,8 @@ details.sk-fold>summary{cursor:pointer; color:var(--ink2); font-size:13px; paddi
         "disponibile solo quando la pagina è aperta dal pannello.",
       scomposizione: "Scomposizione del punteggio", seleziona: "Seleziona una riga della tabella.",
       glossario: "<b>Glossario delle metriche</b> — cos’è, come si legge, dove sbaglia",
-      nav_chiusura: "Chiusura di ieri", nav_pre: "Pre-mercato", nav_brand: "Maxoquantic Scoring",
+      nav_chiusura: "Ultima chiusura", nav_seduta: "Seduta in corso",
+      nav_pre: "Pre-mercato", nav_brand: "Maxoquantic Scoring",
       pesi_file: "pesi di config/scoring.yml", pesi_simulati: "punteggio simulato — pesi non salvati",
       somma: "somma {0} su {1} metriche — non serve che faccia 1: viene normalizzata",
       senza_pesi: "nessun peso attivo: senza pesi non esiste un punteggio, solo una tabella",
@@ -638,7 +639,8 @@ details.sk-fold>summary{cursor:pointer; color:var(--ink2); font-size:13px; paddi
         "the page is served by the panel.",
       scomposizione: "Score breakdown", seleziona: "Select a row in the table.",
       glossario: "<b>Metric glossary</b> — what it is, how to read it, where it misleads",
-      nav_chiusura: "Yesterday's close", nav_pre: "Pre-market", nav_brand: "Maxoquantic Scoring",
+      nav_chiusura: "Latest close", nav_seduta: "Session in progress",
+      nav_pre: "Pre-market", nav_brand: "Maxoquantic Scoring",
       pesi_file: "weights from config/scoring.yml", pesi_simulati: "simulated score — weights not saved",
       somma: "sum {0} across {1} metrics — it does not need to add to 1: it is normalised",
       senza_pesi: "no active weights: without weights there is no score, only a table",
@@ -712,6 +714,34 @@ details.sk-fold>summary{cursor:pointer; color:var(--ink2); font-size:13px; paddi
     var k = D.catalog.groups.indexOf(g);
     return k >= 0 ? D.catalog.groups_en[k] : g;
   }
+  // Aggiornando anche durante la seduta, l'etichetta «Chiusura» diventerebbe
+  // falsa per sei ore e mezza al giorno. Qui si guarda che ore sono a New
+  // York — non i dati, che potrebbero essere vecchi — e si dice cosa sta
+  // succedendo adesso: il pallino rosso sta sulla sezione che si muove.
+  function statoBorsaNY() {
+    var parti = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York", weekday: "short", hour: "2-digit",
+      minute: "2-digit", hour12: false
+    }).formatToParts(new Date());
+    var g = function (t) {
+      var x = parti.filter(function (p) { return p.type === t; })[0];
+      return x ? x.value : "";
+    };
+    var giorno = g("weekday"), feriale = giorno !== "Sat" && giorno !== "Sun";
+    var minuti = (parseInt(g("hour"), 10) % 24) * 60 + parseInt(g("minute"), 10);
+    return {
+      aperta: feriale && minuti >= 570 && minuti < 960,        // 9:30 - 16:00
+      preapertura: feriale && minuti >= 240 && minuti < 570    // 4:00 - 9:30
+    };
+  }
+
+  function etichetteBarra() {
+    var b = statoBorsaNY();
+    el("etichetta-chiusura").textContent = t(b.aperta ? "nav_seduta" : "nav_chiusura");
+    el("punto-chiusura").hidden = !b.aperta;
+    el("punto-pre").hidden = !b.preapertura;
+  }
+
   function testoStatico() {
     document.querySelectorAll("[data-i18n]").forEach(function (n) {
       n.textContent = t(n.getAttribute("data-i18n"));
@@ -723,6 +753,7 @@ details.sk-fold>summary{cursor:pointer; color:var(--ink2); font-size:13px; paddi
       n.placeholder = t(n.getAttribute("data-i18n-ph"));
     });
     document.documentElement.lang = LANG;
+    etichetteBarra();
   }
 
   // ------------------------------------------------------------------ stato
@@ -1841,6 +1872,9 @@ details.sk-fold>summary{cursor:pointer; color:var(--ink2); font-size:13px; paddi
   testoStatico();
 
   collegaPannello().then(function () { return vaiA("chiusura"); });
+  // La borsa puo' aprire o chiudere mentre la pagina resta aperta: ogni
+  // minuto le etichette si riallineano da sole.
+  setInterval(etichetteBarra, 60000);
 })();
 </script>
 </body>

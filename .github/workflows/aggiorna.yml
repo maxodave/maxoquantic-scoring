@@ -22,8 +22,19 @@ on:
     # Questi quattro sono scelti perche' restino nella fascia giusta in
     # entrambe le stagioni — la borsa di New York apre alle 9:30 e chiude
     # alle 16:00, ora locale.
+    #
+    # Le fasce sicure in UTC, ricavate dai due scarti (EDT = UTC-4, EST = UTC-5)
+    # e dagli orari di borsa (9:30-16:00 locali):
+    #     pre-mercato   UTC < 13:30
+    #     seduta        UTC 14:30 - 20:00
+    #     a borsa chiusa UTC >= 21:00
+    #
     - cron: "30 11 * * 1-5"   # 07:30 EDT / 06:30 EST — pre-mercato, presto
     - cron: "15 13 * * 1-5"   # 09:15 EDT / 08:15 EST — pre-mercato, poco prima dell'apertura
+    - cron: "35 14 * * 1-5"   # 10:35 EDT / 09:35 EST — seduta, dopo l'apertura
+    - cron: "5  16 * * 1-5"   # 12:05 EDT / 11:05 EST — seduta
+    - cron: "35 17 * * 1-5"   # 13:35 EDT / 12:35 EST — seduta
+    - cron: "5  19 * * 1-5"   # 15:05 EDT / 14:05 EST — seduta, verso la chiusura
     - cron: "15 21 * * 1-5"   # 17:15 EDT / 16:15 EST — a borsa chiusa
     - cron: "0  23 * * 1-5"   # 19:00 EDT / 18:00 EST — chiusura consolidata
   workflow_dispatch:
