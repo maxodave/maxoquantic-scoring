@@ -1,0 +1,15 @@
+# La cache dei download vive nella cache di GitHub Actions, non nel repo:
+# sono migliaia di file piccoli, e qui non servirebbero a nessuno.
+motore/.cache/
+__pycache__/
+*.pyc
+
+# I dati generati non si committano: lo stato e' index.html, da cui vengono
+# rimessi a posto a ogni corsa (motore/ripristina_dati.py).
+motore/site/data.json
+motore/site/data-premarket.json
+motore/site/data.js
+motore/site/data-premarket.js
+motore/pubblica/
+
+.DS_Store

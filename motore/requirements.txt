@@ -1,0 +1,4 @@
+# Il motore funziona senza dipendenze: normalizzazione, scoring ed export
+# usano solo la standard library. Queste due servono per il resto.
+pyyaml>=6.0        # config in YAML (il motore accetta anche JSON: allora non serve)
+yfinance>=0.2.50   # provider Yahoo: gestisce cookie/crumb, retry e rate limit

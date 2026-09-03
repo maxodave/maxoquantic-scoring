@@ -1,0 +1,112 @@
+# ============================================================================
+#  CONFIGURAZIONE DEL MOTORE DI SCORING
+#  Questo è l'UNICO file che devi toccare per cambiare il punteggio.
+#  I pesi qui sotto sono un PUNTO DI PARTENZA da sostituire con i tuoi.
+# ============================================================================
+
+provider: yahoo          # yahoo | local
+
+# --------------------------------------------------------------------- universo
+# I 150 titoli più liquidi, in due passaggi:
+#   1. BACINO   candidati larghi: lo screener Yahoo se risponde, altrimenti
+#               config/seed_universe.txt (lista fissa, modificabile a mano)
+#   2. RANKING  si scaricano le quote del bacino, si ordina per PREZZO x VOLUME
+#               (il denaro scambiato, non il numero di pezzi) e si tagliano i primi N
+# Il passaggio 2 è la correzione dell'errore di Yahoo: senza, la classifica si
+# riempie di penny stock. Vedi la sezione "Il caso Most Actives" del README.
+universe:
+  source: auto            # auto (screener + ripiego su seed) | screener | file | tickers
+  top_n: 150              # quanti titoli tenere
+  pool_size: 400          # ampiezza del bacino chiesto allo screener
+  seed_path: config/seed_universe.txt
+
+  # soglie applicate GIA' in fase di universo: tengono fuori i penny stock
+  # prima ancora di scaricarne i fondamentali
+  min_price: 5
+  min_market_cap: 300000000
+
+  extra_tickers: []       # sempre inclusi nel bacino, es. [ENI.MI, ISP.MI]
+  exclude_tickers: []     # mai inclusi
+
+  # --- usato solo con source: screener ---
+  region: us
+  sort_field: dayvolume   # il campo su cui ordina Yahoo (poi ri-ordiniamo noi)
+  sort_asc: false
+  min_intraday_price: 5
+  min_day_volume: 5000000
+
+  # --- usato solo con source: tickers ---
+  tickers: [AAPL, MSFT, NVDA, GOOGL, AMZN, META, AVGO, JPM, XOM, WMT]
+
+# ----------------------------------------------------------------------- cache
+# Serve a non farsi bloccare con un 429, non ad andare più veloci.
+# I fondamentali cambiano alla trimestrale: riscaricarli ogni sera è lavoro
+# buttato. I prezzi cambiano ogni giorno, e sono l'unica cosa che
+# l'aggiornamento quotidiano rifà davvero.
+cache:
+  enabled: true
+  dir: .cache
+  pause: 0.25             # secondi fra due richieste: alza a 0.5 se vedi dei 429
+  ttl_quote: 21600        # 6 ore
+  ttl_fundamentals: 604800  # 7 giorni
+  ttl_universe: 604800      # 7 giorni
+
+# --------------------------------------------------------------------- filtri
+# Applicati DOPO il download, sui dati veri. Ogni riga scartata viene contata
+# e stampata: non ti ritrovi mai con una lista filtrata senza sapere da cosa.
+filters:
+  min_price: 5
+  min_market_cap: 300000000
+  min_dollar_volume: 3000000
+  exclude_sectors: []
+  # only_sectors: [Technology]
+
+# --------------------------------------------------------------- normalizzazione
+normalization:
+  method: percentile       # percentile (robusto, consigliato) | zscore
+  peer_group: sector       # sector (confronta simili) | all (confronta tutto)
+  min_peers: 8             # sotto questa soglia il settore ricade sull'universo intero
+
+# --------------------------------------------------------------------- punteggio
+# I PESI. Non serve che sommino a 1: vengono normalizzati.
+# Ogni chiave deve esistere in engine/metrics.py (`python run.py fields` le elenca).
+# Sostituisci con i tuoi parametri: è il punto in cui il motore diventa "tuo".
+scoring:
+  min_coverage: 0.5        # sotto il 50% di peso coperto la riga è marcata inaffidabile
+  weights:
+    # --- valutazione: quanto stai pagando -------------------------- 35
+    ev_ebitda:        0.14
+    pe_forward:       0.09
+    fcf_yield:        0.12
+    # --- qualità: quanto è buono il business --------------------- 33
+    # ROIC sarebbe la metrica migliore qui, ma le API non ufficiali di Yahoo non
+    # la restituiscono per titolo (esiste solo come colonna dello screener).
+    # ROA è il controllo naturale del ROE ed è sempre disponibile.
+    # Con un provider che espone il ROIC: scambia le due righe.
+    roa:              0.13
+    # roic:           0.13
+    net_margin:       0.10
+    gross_margin:     0.10
+    # --- crescita -------------------------------------------------- 17
+    revenue_growth:   0.10
+    earnings_growth:  0.07
+    # --- solidità ------------------------------------------------- 15
+    debt_to_equity:   0.09
+    current_ratio:    0.06
+    # --- momentum: volutamente escluso dal punteggio base.
+    #     Misura il consenso del mercato, non l'azienda. Se lo vuoi, pesalo poco.
+    # week52_change:  0.03
+
+# --------------------------------------------------------------------- output
+output:
+  # Le prime otto sono le colonne della pagina Most Actives di Yahoo, nello
+  # stesso ordine: chi arriva da li' ritrova quello che conosce. Dopo vengono
+  # le due che Yahoo non mostra e che sono il punto di questo motore
+  # (denaro scambiato e volume relativo), poi i fondamentali.
+  columns: [symbol, name, sector, price, change_abs, change_pct, volume, avg_volume_3m,
+            market_cap, pe_trailing, week52_change,
+            week52_low, week52_high, week52_position,
+            dollar_volume, rel_volume,
+            pe_forward, ev_ebitda, fcf_yield,
+            gross_margin, net_margin, roe, roic,
+            revenue_growth, earnings_growth, debt_to_equity, current_ratio, beta]

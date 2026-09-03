@@ -1,0 +1,116 @@
+# ============================================================================
+#  Aggiornamento automatico della pagina — gira su GitHub, non sul computer.
+#
+#  Cosa fa, ogni volta:
+#    1. rimette la cache dei download della corsa precedente
+#    2. scarica SOLO quello che serve a quella fascia oraria
+#    3. ricostruisce index.html con i dati dentro
+#    4. lo committa, e Pages lo pubblica
+#
+#  Perche' non satura niente: la cache di GitHub porta avanti universo e
+#  fondamentali (validi 7 giorni), cosi' una corsa normale tocca la rete per
+#  ~150 richieste invece di ~500. Le corse sono 4 al giorno nei giorni di
+#  borsa: molto sotto il limite di Pages (10 build all'ora) e lontanissime dal
+#  punto in cui Yahoo comincia a rispondere 429.
+# ============================================================================
+name: Aggiorna i dati
+
+on:
+  schedule:
+    # Gli orari cron di GitHub sono in UTC e non seguono l'ora legale: qui
+    # sotto sono indicati sia in EDT (marzo-novembre) sia in EST (inverno).
+    - cron: "10 12 * * 1-5"   # 08:10 EDT / 07:10 EST — pre-mercato presto
+    - cron: "10 14 * * 1-5"   # 10:10 EDT / 09:10 EST — pre-mercato, vicino all'apertura
+    - cron: "30 20 * * 1-5"   # 16:30 EDT / 15:30 EST — subito dopo la chiusura
+    - cron: "30 22 * * 1-5"   # 18:30 EDT / 17:30 EST — chiusura consolidata
+  workflow_dispatch:
+    inputs:
+      cosa:
+        description: "Cosa aggiornare"
+        type: choice
+        default: automatico
+        options: [automatico, chiusura, premercato, tutto, universo]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aggiorna-dati
+  cancel-in-progress: false
+
+jobs:
+  aggiorna:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installa le dipendenze
+        run: pip install --quiet -r motore/requirements.txt
+
+      # La cache e' il pezzo che rende sostenibile il tutto: senza, ogni corsa
+      # riscaricherebbe universo (330 quote) e fondamentali (150 schede), cioe'
+      # cinque volte le richieste, per dati che cambiano una volta a trimestre.
+      - name: Rimetti la cache dei download
+        uses: actions/cache@v4
+        with:
+          path: motore/.cache
+          key: dati-${{ github.run_id }}
+          restore-keys: dati-
+
+      # Lo stato della pagina e' la pagina: index.html contiene entrambi gli
+      # insiemi di dati, quindi si rileggono da li'. Cosi' una corsa che
+      # aggiorna solo il pre-mercato non fa sparire la chiusura.
+      - name: Rimetti i dati della pagina pubblicata
+        working-directory: motore
+        run: python ripristina_dati.py
+
+      - name: Decidi cosa scaricare
+        id: scelta
+        run: python motore/pianifica.py
+        env:
+          SCELTA_MANUALE: ${{ github.event.inputs.cosa }}
+
+      - name: Prezzi di chiusura
+        if: steps.scelta.outputs.chiusura == 'si'
+        working-directory: motore
+        run: python run.py update ${{ steps.scelta.outputs.opzioni_chiusura }}
+
+      - name: Pre-mercato
+        if: steps.scelta.outputs.premercato == 'si'
+        working-directory: motore
+        run: python run.py premarket
+
+      - name: Ricostruisci la pagina
+        working-directory: motore
+        run: python costruisci_pagina_autonoma.py -o ../index.html
+
+      - name: Pubblica se e' cambiato qualcosa
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "La pagina e' identica: niente da pubblicare."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Dati aggiornati: ${{ steps.scelta.outputs.etichetta }}"
+          git push
+
+      - name: Riepilogo
+        if: always()
+        run: |
+          {
+            echo "### ${{ steps.scelta.outputs.etichetta }}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| chiusura | ${{ steps.scelta.outputs.chiusura }} |"
+            echo "| pre-mercato | ${{ steps.scelta.outputs.premercato }} |"
+            echo "| file in cache | $(find motore/.cache -type f 2>/dev/null | wc -l) |"
+          } >> "$GITHUB_STEP_SUMMARY"

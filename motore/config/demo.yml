@@ -1,0 +1,43 @@
+# Config della demo offline: nessuna chiamata di rete, dati dal fixture.
+# Serve a verificare che il motore funzioni prima di collegare qualsiasi API.
+provider: local
+
+universe:
+  source: file
+  path: tests/fixtures/universe_demo.json
+  top_n: 50
+  min_price: 0            # a 0 di proposito: cosi' i tre penny stock del fixture
+                          # arrivano ai filtri e si vede il conteggio degli scarti
+
+cache:
+  enabled: false          # la demo non deve lasciare niente su disco
+
+filters:
+  min_price: 5
+  min_market_cap: 300000000
+  min_dollar_volume: 3000000
+
+normalization:
+  method: percentile
+  peer_group: sector
+  min_peers: 4
+
+scoring:
+  min_coverage: 0.5
+  weights:
+    ev_ebitda:        0.14
+    pe_forward:       0.09
+    fcf_yield:        0.12
+    roic:             0.13
+    net_margin:       0.10
+    gross_margin:     0.10
+    revenue_growth:   0.10
+    earnings_growth:  0.07
+    debt_to_equity:   0.09
+    current_ratio:    0.06
+
+output:
+  columns: [symbol, name, sector, price, market_cap, volume, dollar_volume, rel_volume,
+            pe_trailing, pe_forward, ev_ebitda, fcf_yield,
+            gross_margin, net_margin, roe, roic,
+            revenue_growth, earnings_growth, debt_to_equity, current_ratio]

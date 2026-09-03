@@ -1,0 +1,1847 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I titoli più attivi — per denaro scambiato, con punteggio</title>
+<style>
+/* ==========================================================================
+   SCREENER — la pagina che usa tutto il motore.
+   Stile racchiuso in .sk-root: incollabile in un sito esistente senza
+   toccare il resto. Nessuna dipendenza, nessun CDN, nessuna build.
+   ========================================================================== */
+/* --------------------------------------------------------------------------
+   PALETTE E SFONDO: gli stessi di US Markets Daily (templates/style.css di
+   quel progetto), ricopiati qui perche' le due pagine si assomiglino davvero.
+   Quel progetto non e' stato toccato: questa e' una copia dei suoi valori.
+
+   Nota: la sorgente USA `var(--mono)`, `var(--border-strong)` e
+   `var(--accent-glow)` senza definirle da nessuna parte. Sono riprodotte cosi'
+   come sono — una var non definita rende il font ereditato e il bordo del
+   colore del testo — perche' l'obiettivo e' lo stesso RENDERING, non un CSS
+   piu' corretto di quello che si vuole imitare.
+   -------------------------------------------------------------------------- */
+:root{
+  /* La pagina parte CHIARA. Sono gli stessi valori del tema chiaro di US
+     Markets Daily; il fondo scuro resta a un clic, con il pulsante «Tema»,
+     e la scelta viene ricordata dal browser. */
+  --bg:#f5f6f8; --panel:#ffffff; --panel-2:#f0f1f4; --border-c:#e0e2e8;
+  --textc:#0a0934; --mutedc:#6b7280; --accentc:#2f55e8;
+  --greenc:#0f9d46; --redc:#d33a3a; --yellowc:#c98a06;
+}
+@media (prefers-color-scheme: dark){
+  :root:where([data-theme="dark"]){
+    --bg:#0b0d12; --panel:#12151c; --panel-2:#171b24; --border-c:#262b36;
+    --textc:#e8eaed; --mutedc:#8a90a0; --accentc:#5b8def;
+    --greenc:#22c55e; --redc:#ef4444; --yellowc:#f5c542;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f5f6f8; --panel:#ffffff; --panel-2:#f0f1f4; --border-c:#e0e2e8;
+  --textc:#0a0934; --mutedc:#6b7280; --accentc:#2f55e8;
+  --greenc:#0f9d46; --redc:#d33a3a; --yellowc:#c98a06;
+}
+:root[data-theme="dark"]{
+  --bg:#0b0d12; --panel:#12151c; --panel-2:#171b24; --border-c:#262b36;
+  --textc:#e8eaed; --mutedc:#8a90a0; --accentc:#5b8def;
+  --greenc:#22c55e; --redc:#ef4444; --yellowc:#f5c542;
+}
+
+*{box-sizing:border-box}
+body{ margin:0; padding-bottom:24px;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg); color:var(--textc); overflow-wrap:break-word; }
+
+/* il campo stellare, la vignettatura e la grana: identici alla sorgente */
+#stars{ position:fixed; inset:0; z-index:0; display:block; pointer-events:none; opacity:.55; }
+.vignette{ position:fixed; inset:0; z-index:1; pointer-events:none;
+  background: radial-gradient(120% 90% at 50% 0%, transparent 0%, transparent 38%, rgba(5,6,10,.5) 68%, rgba(5,6,10,.92) 100%), radial-gradient(55% 40% at 50% 0%, rgba(91,141,239,.08), transparent 70%); }
+.grain{ position:fixed; inset:0; z-index:2; pointer-events:none; opacity:.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+/* Il campo stellare, la vignettatura e la grana sono fatti per un fondo scuro:
+   sul chiaro sporcherebbero e basta. Si accendono solo nel tema scuro. */
+.vignette,.grain,#stars{ opacity:0; }
+:root[data-theme="dark"] .vignette{ opacity:1; }
+:root[data-theme="dark"] .grain{ opacity:.04; }
+:root[data-theme="dark"] #stars{ opacity:.55; }
+
+/* barra in alto, a filo di pagina, come nella sorgente */
+.site-nav{ position:sticky; top:0; z-index:40; display:flex; align-items:center;
+  justify-content:space-between; gap:20px; padding:14px clamp(16px,4vw,48px);
+  margin:0 0 8px; width:100%;
+  background:linear-gradient(to bottom, rgba(255,255,255,.96), rgba(255,255,255,.82));
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border-c); }
+:root[data-theme="dark"] .site-nav{ background:linear-gradient(to bottom, rgba(5,6,10,.92), rgba(5,6,10,.72)); }
+.site-nav .brand{ display:flex; align-items:center; gap:9px; font-family:var(--mono);
+  font-size:.86rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; }
+.nav-links{ display:flex; gap:22px; align-items:center; }
+.nav-link{ font-family:var(--mono); font-size:.74rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--mutedc); text-decoration:none; cursor:pointer;
+  background:none; border:0; padding:0; }
+.nav-link:hover,.nav-link.active{ color:var(--textc); }
+.nav-link.live-link{ display:inline-flex; align-items:center; gap:7px; }
+.live-dot{ width:8px; height:8px; border-radius:50%; background:#ff4d4d;
+  box-shadow:0 0 8px #ff4d4d; animation:v2pulse 1.6s ease-in-out infinite; display:inline-block; }
+@keyframes v2pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+.lang-toggle{ display:flex; gap:6px; flex-wrap:wrap; }
+.lang-chip{ border:1px solid var(--border-c); background:var(--panel); padding:5px 12px;
+  font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; cursor:pointer;
+  color:var(--textc); user-select:none; }
+.lang-chip.active{ background:var(--textc); color:var(--bg); border-color:var(--textc); }
+@media (max-width:780px){
+  .site-nav{ flex-wrap:wrap; row-gap:9px; padding-top:10px; padding-bottom:10px; }
+  .nav-links{ order:3; width:100%; flex-wrap:wrap; gap:8px 16px; justify-content:flex-start; }
+  .nav-link{ font-size:.68rem; letter-spacing:.05em; }
+}
+
+/* --------------------------------------------------------------------------
+   Lo screener eredita quella palette: i suoi nomi interni restano, cosi' tutto
+   il resto del foglio di stile non cambia di una riga.
+   -------------------------------------------------------------------------- */
+.sk-root{
+  position:relative; z-index:3;
+  --surface:var(--panel); --plane:transparent; --raise:var(--panel-2);
+  --ink:var(--textc); --ink2:color-mix(in srgb, var(--textc) 72%, var(--mutedc));
+  --muted:var(--mutedc);
+  --grid:var(--border-c); --axis:var(--border-c); --border:var(--border-c);
+  --accent:var(--accentc);
+  --accent-soft:color-mix(in srgb, var(--accentc) 26%, var(--panel));
+  --accent-deep:color-mix(in srgb, var(--accentc) 70%, var(--textc));
+  --good:var(--greenc); --warn:var(--yellowc); --crit:var(--redc);
+  --up:var(--greenc); --down:var(--redc);
+  --r:10px;
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  color:var(--ink); background:var(--plane); box-sizing:border-box;
+  padding:clamp(12px,2vw,24px); max-width:1400px; margin:0 auto;
+}
+.sk-root *{box-sizing:border-box}
+.sk-root h1{font-size:clamp(19px,2.2vw,25px); margin:0 0 3px; letter-spacing:-.01em}
+.sk-root h2{font-size:15px; margin:0 0 10px; letter-spacing:-.005em}
+.sk-root h3{font-size:13px; margin:0 0 6px}
+.sk-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r)}
+.sk-note{color:var(--muted); font-size:12px; margin:0}
+.sk-sub{color:var(--ink2); margin:0}
+.sk-root button{font:inherit}
+
+/* ------------------------------------------------------------- testata */
+.sk-top{display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; margin-bottom:12px}
+.sk-top .t{flex:1 1 340px; min-width:0}
+.sk-badges{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
+.sk-badge{font-size:11.5px; color:var(--ink2); background:var(--surface);
+  border:1px solid var(--border); border-radius:99px; padding:2px 9px; white-space:nowrap}
+.sk-badge.hot{border-color:var(--accent); color:var(--accent)}
+.sk-badge.bad{border-color:var(--crit); color:var(--crit)}
+#sk-demo{margin:0 0 10px; padding:9px 13px; border-radius:8px; font-size:13px;
+  background:color-mix(in srgb, var(--crit) 13%, var(--surface));
+  border:1px solid color-mix(in srgb, var(--crit) 35%, transparent)}
+
+/* ------------------------------------------------- schede (le classifiche) */
+/* Yahoo le presenta come screener diversi (Most Actives, Top Gainers, Top
+   Losers...). Qui sono lo stesso universo riordinato, e la pagina lo dice:
+   sono 150 titoli sempre gli stessi, cambia la colonna su cui si ordina. */
+.sk-tabs{display:flex; gap:2px; flex-wrap:wrap; margin-bottom:10px;
+  border-bottom:1px solid var(--grid)}
+.sk-tab{background:transparent; border:0; border-bottom:2px solid transparent;
+  color:var(--ink2); padding:8px 13px; cursor:pointer; font-size:13.5px; border-radius:6px 6px 0 0}
+.sk-tab:hover{color:var(--ink); background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.sk-tab.on{color:var(--accent); border-bottom-color:var(--accent); font-weight:600}
+
+/* ------------------------------------------------------------- filtri */
+.sk-filters{padding:12px 14px; margin-bottom:10px}
+.sk-frow{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.sk-root input[type=search],.sk-root input[type=number],.sk-root select{
+  font:inherit; color:var(--ink); background:var(--plane);
+  border:1px solid var(--border); border-radius:8px; padding:6px 9px; min-width:0}
+.sk-root input[type=search]{flex:1 1 220px}
+.sk-root input[type=number]{width:96px; text-align:right; font-variant-numeric:tabular-nums}
+.sk-fld{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink2)}
+.sk-btn{color:var(--ink2); background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; padding:6px 11px; cursor:pointer}
+.sk-btn:hover{color:var(--accent); border-color:var(--accent)}
+.sk-btn.on{background:var(--accent); border-color:var(--accent); color:#fff}
+.sk-btn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+.sk-btn.primary:hover{color:#fff; filter:brightness(1.08)}
+.sk-btn:disabled{opacity:.45; cursor:not-allowed}
+.sk-btn.sm{padding:4px 9px; font-size:12px}
+.sk-chk{display:inline-flex; align-items:center; gap:6px; color:var(--ink2); font-size:12.5px; cursor:pointer}
+.sk-active-filters{margin-top:9px; padding-top:9px; border-top:1px dashed var(--grid);
+  display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:12px; color:var(--ink2)}
+.sk-chip{display:inline-flex; align-items:center; gap:5px; background:var(--accent-soft);
+  color:var(--accent-deep); border-radius:99px; padding:2px 4px 2px 9px; font-size:11.5px}
+.sk-chip button{border:0; background:transparent; color:inherit; cursor:pointer;
+  font-size:13px; line-height:1; padding:0 4px}
+
+/* ------------------------------------------------------------- toolbar */
+.sk-tools{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:0 0 8px}
+.sk-views{display:flex; gap:4px; flex-wrap:wrap}
+.sk-count{color:var(--muted); font-size:12px; margin-left:auto}
+
+/* ------------------------------------------------------------- tabella */
+.sk-scroll{overflow:auto; max-height:72vh; border:1px solid var(--border);
+  border-radius:var(--r); background:var(--surface)}
+.sk-table{border-collapse:separate; border-spacing:0; width:100%; font-variant-numeric:tabular-nums}
+.sk-table th,.sk-table td{padding:8px 11px; text-align:right; white-space:nowrap;
+  border-bottom:1px solid var(--grid)}
+.sk-table th{position:sticky; top:0; z-index:3; background:var(--surface);
+  border-bottom:1px solid var(--axis); font-weight:600; font-size:11.5px;
+  color:var(--ink2); cursor:pointer; user-select:none}
+.sk-table th:hover{color:var(--ink)}
+.sk-table th.sorted{color:var(--accent)}
+.sk-table th.l,.sk-table td.l{text-align:left}
+.sk-table tbody tr{cursor:pointer}
+.sk-table tbody tr:hover td{background:color-mix(in srgb, var(--accent) 6%, transparent)}
+.sk-table tbody tr.sel td{background:color-mix(in srgb, var(--accent) 11%, transparent)}
+.sk-table tbody tr.dim td{color:var(--muted)}
+/* prime due colonne bloccate a sinistra, come negli screener veri */
+.sk-table th.p1,.sk-table td.p1{position:sticky; left:0; z-index:2; background:var(--surface)}
+.sk-table th.p2,.sk-table td.p2{position:sticky; left:46px; z-index:2; background:var(--surface)}
+.sk-table th.p1,.sk-table th.p2{z-index:4}
+.sk-table td.p2{font-weight:600}
+.sk-table tbody tr:hover td.p1,.sk-table tbody tr:hover td.p2{
+  background:color-mix(in srgb, var(--accent) 6%, var(--surface))}
+.sk-th-in{display:inline-flex; align-items:center; gap:4px}
+.sk-i{width:15px; height:15px; flex:none; border-radius:50%; border:1px solid var(--axis);
+  background:transparent; color:var(--muted); font-size:10px; line-height:13px;
+  font-weight:700; cursor:pointer; padding:0; font-family:inherit}
+.sk-i:hover,.sk-i[aria-expanded=true]{background:var(--accent); border-color:var(--accent); color:#fff}
+.sk-tick{color:var(--muted); font-weight:400}
+.sk-arr{color:var(--accent); font-size:9px}
+.sk-w{font-size:9.5px; color:var(--accent); border:1px solid var(--accent-soft);
+  border-radius:4px; padding:0 3px; font-weight:700}
+.sk-pos{color:var(--up)} .sk-neg{color:var(--down)}
+/* il ticker si legge come un identificativo, non come testo qualunque:
+   negli screener e' sempre la colonna su cui cade l'occhio per prima */
+.sk-table td.p2{color:var(--accent)}
+/* intervallo 52 settimane: la colonna "52 Week Range" di Yahoo. Un numero
+   solo non direbbe se l'intervallo e' largo o stretto, quindi si disegna. */
+.sk-r52{display:inline-flex; align-items:center; gap:6px; justify-content:flex-end}
+.sk-r52 .lo,.sk-r52 .hi{font-size:11px; color:var(--muted); min-width:38px}
+.sk-r52 .lo{text-align:right} .sk-r52 .hi{text-align:left}
+.sk-r52 .trk{position:relative; width:62px; height:5px; border-radius:3px;
+  background:linear-gradient(90deg,var(--accent-soft),var(--accent))}
+.sk-r52 .mk{position:absolute; top:-3px; width:3px; height:11px; border-radius:2px;
+  background:var(--ink); transform:translateX(-1px)}
+
+.sk-meter{display:inline-flex; align-items:center; gap:7px; justify-content:flex-end}
+.sk-meter .trk{width:56px; height:8px; border-radius:4px; background:var(--accent-soft); overflow:hidden}
+.sk-meter .fil{display:block; height:100%; border-radius:4px; background:var(--accent)}
+.sk-meter .val{min-width:30px; text-align:right; font-weight:600}
+.sk-cov{display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--ink2)}
+.sk-dot{width:8px; height:8px; border-radius:50%; flex:none}
+.sk-dot.ok{background:var(--good)} .sk-dot.mid{background:var(--warn)} .sk-dot.low{background:var(--crit)}
+.sk-empty{padding:44px 16px; text-align:center; color:var(--muted)}
+
+/* il box esplicativo sotto l'intestazione */
+tr.sk-boxrow td{padding:0; border-bottom:1px solid var(--axis);
+  background:color-mix(in srgb, var(--accent) 5%, var(--surface))}
+.sk-box{padding:14px 16px; position:relative}
+.sk-table th.sk-hi{background:color-mix(in srgb, var(--accent) 12%, var(--surface)); color:var(--ink)}
+.sk-box-h{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:8px}
+.sk-box-g{display:grid; gap:10px 18px; grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  white-space:normal; text-align:left; max-width:1000px}
+.sk-box-g dt{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:2px}
+.sk-box-g dd{margin:0; color:var(--ink2); font-size:13px; line-height:1.45}
+.sk-box-g .warn dt{color:var(--crit)}
+.sk-box-close{position:absolute; top:8px; right:10px}
+
+/* ------------------------------------------------------------- paginazione */
+.sk-pag{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:9px;
+  font-size:12.5px; color:var(--ink2)}
+.sk-pag .sp{flex:1}
+
+/* ------------------------------------------------------------- pannelli */
+.sk-grid{display:grid; gap:14px; grid-template-columns:1fr; margin-top:16px}
+@media (min-width:1080px){ .sk-grid.two{grid-template-columns:1.05fr .95fr} }
+.sk-pane{padding:14px 16px}
+.sk-pane>header{display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap}
+.sk-pane>header h2{margin:0}
+.sk-pane>header .sp{flex:1}
+
+/* pesi */
+table.sk-pesi{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums}
+table.sk-pesi th,table.sk-pesi td{padding:5px 7px; border-bottom:1px solid var(--grid); text-align:right}
+table.sk-pesi th{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--muted); font-weight:600}
+table.sk-pesi td:first-child,table.sk-pesi th:first-child{text-align:left}
+table.sk-pesi tr.off td:first-child{color:var(--muted)}
+table.sk-pesi tr.nodata{opacity:.5}
+table.sk-pesi input[type=range]{width:98px; vertical-align:middle; accent-color:var(--accent)}
+table.sk-pesi input[type=number]{width:68px; padding:3px 6px}
+.sk-grp td{background:color-mix(in srgb,var(--accent) 5%,var(--surface)); font-size:10.5px;
+  text-transform:uppercase; letter-spacing:.07em; color:var(--ink2); font-weight:600}
+.sk-dir{display:inline-block; width:14px; color:var(--muted); font-weight:600}
+.sk-msg{padding:9px 12px; border-radius:8px; font-size:12.5px; margin-top:9px; display:none}
+.sk-msg.ok{display:block; background:color-mix(in srgb,var(--good) 14%,var(--surface))}
+.sk-msg.err{display:block; background:color-mix(in srgb,var(--crit) 14%,var(--surface))}
+
+/* dettaglio */
+.sk-brk{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; margin-top:9px}
+.sk-brk td,.sk-brk th{padding:4px 7px; border-bottom:1px solid var(--grid); font-size:12.5px; text-align:right}
+.sk-brk th{font-size:10.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em}
+.sk-brk td:first-child,.sk-brk th:first-child{text-align:left}
+.sk-brk .bar{width:64px; height:6px; border-radius:3px; background:var(--accent-soft);
+  display:inline-block; vertical-align:middle}
+.sk-brk .bar>i{display:block; height:100%; border-radius:3px; background:var(--accent)}
+.sk-brk tr.miss td{color:var(--muted)}
+
+/* motore */
+.sk-cmds{display:flex; gap:7px; flex-wrap:wrap}
+.sk-console{margin-top:10px; border:1px solid var(--grid); border-radius:8px; overflow:hidden}
+.sk-console .bar{display:flex; align-items:center; gap:9px; padding:7px 11px;
+  border-bottom:1px solid var(--grid); background:color-mix(in srgb,var(--accent) 4%,var(--surface));
+  font-size:12.5px}
+.sk-console .bar .sp{flex:1}
+.sk-console pre{margin:0; padding:11px 13px; max-height:230px; overflow:auto; white-space:pre-wrap;
+  word-break:break-word; font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; color:var(--ink2)}
+.spin{width:11px;height:11px;border-radius:50%;border:2px solid var(--accent-soft);
+  border-top-color:var(--accent); animation:sk-g .8s linear infinite; flex:none}
+@keyframes sk-g{to{transform:rotate(360deg)}}
+
+/* ------------------------------------------------- barra dei comandi */
+/* I comandi stanno IN CIMA e sono grandi: sono la cosa che si usa ogni
+   giorno. Ogni pulsante dice cosa fa e quanto ci mette, cosi' non serve
+   sapere che sotto c'e' una riga di comando. */
+.sk-run{margin:0 0 12px; padding:13px 15px}
+.sk-run>header{display:flex; align-items:center; gap:8px; margin-bottom:11px; flex-wrap:wrap}
+.sk-run>header h2{margin:0}
+.sk-run>header .sp{flex:1}
+.sk-acts{display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(212px,1fr))}
+.sk-act{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;
+  padding:10px 12px; border:1px solid var(--border); border-radius:9px;
+  background:var(--surface); color:var(--ink); cursor:pointer; min-height:60px}
+.sk-act b{font-size:13.5px; font-weight:600; display:block}
+.sk-act span{font-size:11.5px; color:var(--muted); line-height:1.35; white-space:normal}
+.sk-act:hover:not(:disabled){border-color:var(--accent); background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+.sk-act.primary{background:var(--accent); border-color:var(--accent); grid-column:span 2}
+.sk-act.primary b{font-size:15px; color:#fff}
+.sk-act.primary span{color:#fff; opacity:.88}
+.sk-act.primary:hover:not(:disabled){background:var(--accent); filter:brightness(1.08)}
+.sk-act:disabled{opacity:.45; cursor:not-allowed}
+@media (max-width:640px){ .sk-act.primary{grid-column:span 1} }
+.sk-run details>summary{cursor:pointer; color:var(--ink2); font-size:12.5px; padding:6px 0}
+.sk-nopanel{margin-top:10px; padding:10px 13px; border-radius:8px; font-size:12.5px;
+  color:var(--ink2); background:color-mix(in srgb,var(--warn) 12%,var(--surface));
+  border:1px solid color-mix(in srgb,var(--warn) 35%,transparent)}
+.sk-panel-acceso{margin-top:10px; padding:12px 14px; border-radius:8px; font-size:13px;
+  color:var(--ink); background:color-mix(in srgb,var(--good) 13%,var(--surface));
+  border:1px solid color-mix(in srgb,var(--good) 40%,transparent)}
+.sk-seduta{display:inline-flex; align-items:center; gap:6px; font-weight:600; color:var(--ink)}
+.sk-badge.ok{border-color:var(--good); color:var(--good)}
+
+/* glossario */
+.sk-gloss{display:grid; gap:11px; grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.sk-gcard{padding:13px 15px}
+.sk-gcard .sk-box-g{grid-template-columns:1fr; gap:7px}
+.sk-grp-t{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+  margin:20px 0 8px; border-bottom:1px solid var(--grid); padding-bottom:4px}
+details.sk-fold>summary{cursor:pointer; color:var(--ink2); font-size:13px; padding:4px 0}
+</style>
+</head>
+<body>
+
+<!-- Sfondo: le tre superfici sovrapposte di US Markets Daily. -->
+<canvas id="stars" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="site-nav" id="siteNav">
+  <div class="brand"><span aria-hidden="true">&#128640;</span> <span id="nav-brand" data-i18n="nav_brand">Maxoquantic Scoring</span></div>
+  <nav class="nav-links" aria-label="Sezioni">
+    <button type="button" class="nav-link active" data-vista="chiusura" id="nav-chiusura" data-i18n="nav_chiusura">Chiusura di ieri</button>
+    <button type="button" class="nav-link live-link" data-vista="premarket" id="nav-premarket"><span class="live-dot"></span><span data-i18n="nav_pre">Pre-mercato</span></button>
+  </nav>
+  <div class="lang-toggle" id="langToggle">
+    <div class="lang-chip" data-lang="en">EN</div>
+    <div class="lang-chip active" data-lang="it">IT</div>
+  </div>
+</header>
+
+<!-- ===================== INIZIO PEZZO DA INCOLLARE ===================== -->
+<section class="sk-root" id="sk-root" aria-labelledby="sk-title">
+
+  <div class="sk-top">
+    <div class="t">
+      <h1 id="sk-title" data-i18n="titolo">I titoli più attivi — per denaro scambiato, con punteggio</h1>
+      <p class="sk-sub" id="sk-seduta" data-i18n="caricamento">Caricamento…</p>
+      <p class="sk-note" id="sk-meta" style="margin-top:3px"></p>
+      <div class="sk-badges" id="sk-badges"></div>
+    </div>
+    <div style="display:flex; gap:7px; align-items:center">
+      <button class="sk-btn sm" id="sk-csv" type="button" data-i18n="csv">Scarica CSV</button>
+      <button class="sk-btn sm" id="sk-theme" type="button" data-i18n="tema">Tema</button>
+    </div>
+  </div>
+
+  <p id="sk-demo" hidden></p>
+
+  <!-- ===================== COMANDI =====================
+       Tutti gli script del progetto, come pulsanti. Funzionano quando la
+       pagina e' servita dal pannello: un HTML aperto con doppio clic non puo'
+       eseguire programmi, e per fortuna. -->
+  <div class="sk-card sk-run" id="sk-engine">
+    <header>
+      <h2 data-i18n="comandi">Comandi</h2>
+      <span class="sk-badge" id="sk-engine-state" data-i18n="pannello_no">pannello non collegato</span>
+      <div class="sp"></div>
+      <button class="sk-btn sm" id="sk-stop" type="button" disabled data-i18n="ferma">Ferma</button>
+    </header>
+    <div class="sk-acts" id="sk-cmds"></div>
+    <div class="sk-nopanel" id="sk-nopanel" hidden></div>
+    <details id="sk-cons-fold">
+      <summary id="sk-cons-sum" data-i18n="console_vuota">Console — nessun comando eseguito</summary>
+      <div class="sk-console" style="margin-top:0">
+        <div class="bar"><div class="spin" id="sk-spin" style="display:none"></div>
+          <b id="sk-cons-t" data-i18n="console">Console</b><span class="sk-note" id="sk-cons-s"></span><div class="sp"></div>
+          <button class="sk-btn sm" id="sk-cons-c" type="button" data-i18n="pulisci">Pulisci</button></div>
+        <pre id="sk-out" data-i18n="niente_eseguito">Nessun comando eseguito in questa pagina.</pre>
+      </div>
+    </details>
+  </div>
+
+  <div class="sk-tabs" id="sk-tabs" role="tablist"></div>
+  <p class="sk-note" id="sk-tab-nota" style="margin:-4px 0 10px"></p>
+
+  <!-- FILTRI: sempre visibili e sempre elencati sotto la riga.
+       E' la differenza deliberata con Yahoo, che ne applica tre senza dirlo. -->
+  <div class="sk-card sk-filters">
+    <div class="sk-frow">
+      <input type="search" id="sk-q" data-i18n-ph="cerca" placeholder="Cerca ticker o azienda" aria-label="Cerca">
+      <select id="sk-sector" aria-label="Settore"><option value="" data-i18n="tutti_settori">Tutti i settori</option></select>
+      <select id="sk-mcap" aria-label="Capitalizzazione">
+        <option value="" data-i18n="qualsiasi_cap">Qualsiasi capitalizzazione</option>
+        <option value="100e9" data-i18n="cap_oltre">Oltre 100 mld $</option>
+        <option value="10e9-100e9" data-i18n="cap_10_100">10 – 100 mld $</option>
+        <option value="2e9-10e9" data-i18n="cap_2_10">2 – 10 mld $</option>
+        <option value="0-2e9" data-i18n="cap_sotto">Sotto 2 mld $</option>
+      </select>
+      <label class="sk-fld"><span data-i18n="f_prezzo">Prezzo min</span> <input type="number" id="sk-price" min="0" step="1" placeholder="0"></label>
+      <label class="sk-fld"><span data-i18n="f_dv">Volume $ min (mln)</span> <input type="number" id="sk-dv" min="0" step="10" placeholder="0"></label>
+      <label class="sk-fld"><span data-i18n="f_chg_min">Variazione % da</span>
+        <input type="number" id="sk-chg-min" step="1" placeholder="-∞"></label>
+      <label class="sk-fld"><span data-i18n="f_chg_max">a</span>
+        <input type="number" id="sk-chg-max" step="1" placeholder="+∞"></label>
+      <label class="sk-fld"><span data-i18n="f_relvol">Volume relativo ≥</span>
+        <input type="number" id="sk-relvol" min="0" step="0.5" placeholder="0"></label>
+      <label class="sk-fld"><span data-i18n="f_score">Punteggio min</span> <input type="number" id="sk-score" min="0" max="100" step="5" placeholder="0"></label>
+      <label class="sk-chk"><input type="checkbox" id="sk-rel" checked> <span data-i18n="f_rel">Solo dati affidabili</span></label>
+      <button class="sk-btn sm" id="sk-reset" type="button" data-i18n="azzera">Azzera filtri</button>
+    </div>
+    <div class="sk-active-filters" id="sk-chips"></div>
+  </div>
+
+  <div class="sk-tools">
+    <span class="sk-note" style="margin-right:2px" data-i18n="colonne">Colonne:</span>
+    <div class="sk-views" id="sk-views"></div>
+    <span class="sk-count" id="sk-count"></span>
+  </div>
+
+  <div class="sk-scroll">
+    <table class="sk-table" id="sk-table">
+      <thead><tr id="sk-head"></tr></thead>
+      <tbody id="sk-body"></tbody>
+    </table>
+  </div>
+
+  <div class="sk-pag">
+    <span id="sk-range"></span>
+    <button class="sk-btn sm" id="sk-prev" type="button" data-i18n="prec">‹ Precedenti</button>
+    <button class="sk-btn sm" id="sk-next" type="button" data-i18n="succ">Successivi ›</button>
+    <label class="sk-fld"><span data-i18n="righe">righe</span>
+      <select id="sk-per"><option>25</option><option selected>50</option><option>100</option>
+      <option value="0" data-i18n="tutte">tutte</option></select>
+    </label>
+    <div class="sp"></div>
+    <span class="sk-note" data-i18n-html="suggerimento"></span>
+  </div>
+
+  <div class="sk-grid two">
+    <!-- ------------------------------------------------------- PESI -->
+    <div class="sk-card sk-pane">
+      <header>
+        <h2 data-i18n="pesi_titolo">Pesi del punteggio</h2>
+        <span class="sk-badge" id="sk-w-state">pesi del file</span>
+        <div class="sp"></div>
+        <button class="sk-btn sm" id="sk-w-reset" type="button" data-i18n="rileggi">Rileggi dal file</button>
+        <button class="sk-btn sm primary" id="sk-w-save" type="button" hidden data-i18n="salva">Salva in scoring.yml</button>
+      </header>
+      <p class="sk-note" style="margin-bottom:9px" data-i18n-html="pesi_nota"></p>
+      <div class="sk-frow" style="margin-bottom:9px">
+        <span class="sk-note" data-i18n="preimp">Preimpostazioni:</span>
+        <button class="sk-btn sm" data-preset="file" type="button" data-i18n="p_file">del file</button>
+        <button class="sk-btn sm" data-preset="value" type="button" data-i18n="p_value">Valore</button>
+        <button class="sk-btn sm" data-preset="quality" type="button" data-i18n="p_quality">Qualità</button>
+        <button class="sk-btn sm" data-preset="growth" type="button" data-i18n="p_growth">Crescita</button>
+        <button class="sk-btn sm" data-preset="safety" type="button" data-i18n="p_safety">Solidità</button>
+        <button class="sk-btn sm" data-preset="zero" type="button" data-i18n="p_zero">azzera</button>
+      </div>
+      <div style="max-height:420px; overflow:auto">
+        <table class="sk-pesi"><tbody id="sk-pesi"></tbody></table>
+      </div>
+      <p class="sk-note" style="margin-top:9px" id="sk-w-tot"></p>
+      <div class="sk-msg" id="sk-w-msg"></div>
+    </div>
+
+    <!-- --------------------------------------------------- DETTAGLIO -->
+    <div class="sk-card sk-pane" id="sk-detail-pane">
+      <header><h2 data-i18n="scomposizione">Scomposizione del punteggio</h2></header>
+      <div id="sk-detail"><p class="sk-note" data-i18n="seleziona">Seleziona una riga della tabella.</p></div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------ GLOSSARIO -->
+  <details class="sk-fold" style="margin-top:18px">
+    <summary data-i18n-html="glossario"><b>Glossario delle metriche</b> — cos'è, come si legge, dove sbaglia</summary>
+    <div id="sk-gloss" style="margin-top:10px"></div>
+  </details>
+
+  <p class="sk-note" id="sk-disc" style="margin-top:18px"></p>
+</section>
+<!-- ====================== FINE PEZZO DA INCOLLARE ====================== -->
+
+<script>
+/* Campo stellare: la stessa funzione di US Markets Daily (templates/app.js),
+   ricopiata per avere lo stesso sfondo. Si spegne se il sistema chiede meno
+   animazioni, e si ferma quando la scheda non e' in primo piano. */
+(function stars() {
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var c = document.getElementById("stars"); if (!c || reduce) return;
+  var x = c.getContext("2d"); if (!x) return;
+  var W, H, st, mx = 0, my = 0, t = 0, raf;
+  function rs() { W = c.width = innerWidth; H = c.height = innerHeight; var n = Math.min(180, Math.floor(W * H / 12000));
+    st = Array.from({ length: n }, function () { return { x: Math.random() * W, y: Math.random() * H, z: Math.random() * .8 + .2, r: Math.random() * 1.2 + .2, tw: Math.random() * Math.PI * 2 }; }); }
+  function draw() { t += .012; x.clearRect(0, 0, W, H); for (var i = 0; i < st.length; i++) { var s = st[i]; var px = s.x + mx * 24 * s.z, py = s.y + my * 24 * s.z, a = .28 + Math.sin(t + s.tw) * .22; x.beginPath(); x.arc(px, py, s.r * s.z * 1.3, 0, 7); x.fillStyle = "rgba(200,214,255," + a.toFixed(2) + ")"; x.fill(); } raf = requestAnimationFrame(draw); }
+  rs(); draw(); addEventListener("resize", rs); addEventListener("mousemove", function (e) { mx = e.clientX / W - .5; my = e.clientY / H - .5; });
+  document.addEventListener("visibilitychange", function () { if (document.hidden) { cancelAnimationFrame(raf); } else { draw(); } });
+})();
+
+(function () {
+  "use strict";
+
+  // ============================================================== LINGUA
+  // Stesso schema di US Markets Daily: la scelta si ricorda nel browser e il
+  // cambio ridisegna la pagina. Qui la lingua di partenza e' l'italiano
+  // perche' e' la lingua di chi lo usa tutti i giorni; li' e' l'inglese
+  // perche' e' un sito pubblico.
+  var LANG = localStorage.getItem("skLang") || "it";
+
+  var T = {
+    it: {
+      titolo: "I titoli più attivi — per denaro scambiato, con punteggio",
+      titolo_pre: "Pre-mercato — prima che New York apra",
+      caricamento: "Caricamento…", csv: "Scarica CSV", tema: "Tema",
+      comandi: "Comandi", pannello_no: "pannello non collegato",
+      pannello_si: "pannello collegato", ferma: "Ferma",
+      console: "Console", console_vuota: "Console — nessun comando eseguito",
+      pulisci: "Pulisci", niente_eseguito: "Nessun comando eseguito in questa pagina.",
+      cerca: "Cerca ticker o azienda", tutti_settori: "Tutti i settori",
+      qualsiasi_cap: "Qualsiasi capitalizzazione", cap_oltre: "Oltre 100 mld $",
+      cap_10_100: "10 – 100 mld $", cap_2_10: "2 – 10 mld $", cap_sotto: "Sotto 2 mld $",
+      f_prezzo: "Prezzo min", f_dv: "Volume $ min (mln)", f_chg_min: "Variazione % da",
+      f_chg_max: "a", f_relvol: "Volume relativo ≥", f_score: "Punteggio min",
+      f_rel: "Solo dati affidabili", azzera: "Azzera filtri", colonne: "Colonne:",
+      prec: "‹ Precedenti", succ: "Successivi ›", righe: "righe", tutte: "tutte",
+      suggerimento: "Clic su <b>i</b> accanto a un’intestazione per la scheda della metrica · " +
+        "clic su una riga per la scomposizione del punteggio.",
+      pesi_titolo: "Pesi del punteggio", rileggi: "Rileggi dal file",
+      salva: "Salva in scoring.yml", preimp: "Preimpostazioni:",
+      p_file: "del file", p_value: "Valore", p_quality: "Qualità",
+      p_growth: "Crescita", p_safety: "Solidità", p_zero: "azzera",
+      pesi_nota: "Muovi un peso e la classifica qui sopra si ricalcola subito: i percentili sono già " +
+        "nei dati, cambiare i pesi non richiede di riscaricare niente. Finché non salvi, il punteggio " +
+        "mostrato è una <b>simulazione</b>. Il salvataggio riscrive <code>config/scoring.yml</code> ed è " +
+        "disponibile solo quando la pagina è aperta dal pannello.",
+      scomposizione: "Scomposizione del punteggio", seleziona: "Seleziona una riga della tabella.",
+      glossario: "<b>Glossario delle metriche</b> — cos’è, come si legge, dove sbaglia",
+      nav_chiusura: "Chiusura di ieri", nav_pre: "Pre-mercato", nav_brand: "Maxoquantic Scoring",
+      pesi_file: "pesi di config/scoring.yml", pesi_simulati: "punteggio simulato — pesi non salvati",
+      somma: "somma {0} su {1} metriche — non serve che faccia 1: viene normalizzata",
+      senza_pesi: "nessun peso attivo: senza pesi non esiste un punteggio, solo una tabella",
+      filtri_attivi: "Filtri attivi ({0}):", nessun_filtro: "nessuno — stai vedendo tutto l’universo calcolato",
+      togli: "Togli il filtro", risultati: "{0}–{1} di {2} risultati", su_titoli: " (su {0} titoli)",
+      nessun_risultato: "nessun risultato", pagina: "pagina {0} di {1}",
+      tabella_vuota: "Nessun titolo con questi filtri. Togli un filtro qui sopra.",
+      col_punteggio: "Punteggio", col_copertura: "Copertura", col_r52: "Intervallo 52 settimane",
+      pos_ordinamento: "posizione in questo ordinamento · punteggio: {0}° su {1}",
+      pos_intestazione: "Posizione nell’ordinamento attuale. Clic: torna all’ordine per punteggio.",
+      cos_e: "Cos’è", come_si_legge: "Come si legge", attenzione: "Attenzione",
+      peso: "peso", dato_mancante: "dato mancante", metrica: "Metrica", valore: "Valore",
+      percentile: "Percentile", peso_col: "Peso", punti: "Punti",
+      settore_nd: "settore n/d", punteggio_no: "punteggio non calcolabile",
+      punteggio_di: "punteggio {0}/100", copertura_di: "copertura {0}% ({1})",
+      posizione_di: "posizione {0} su {1}", tutte_colonne: "Tutte le colonne",
+      colonne_yahoo: "Le colonne di Yahoo", vista_sintesi: "Sintesi", vista_pre: "Pre-apertura",
+      cov_completa: "completa", cov_parziale: "parziale", cov_insufficiente: "insufficiente",
+      dir_alto: "alto = meglio", dir_basso: "basso = meglio",
+      dir_fascia: "premiata una fascia, non il massimo", dir_contesto: "solo contesto, non entra nel punteggio",
+      chiusura_del: "Prezzi di chiusura del ", in_seduta_del: "Prezzi in seduta del ",
+      ore: "ore", seduta_chiusa: "(seduta chiusa)", seduta_aperta: "(mercato aperto: i prezzi si muovono ancora)",
+      pre_del: "Pre-mercato del ", dato_delle: "· dato delle {0} New York",
+      pre_rispetto: "· variazioni misurate sulla chiusura del {0}",
+      pre_meta: "{0} titoli su {1} hanno un prezzo di pre-apertura · le altre colonne (volumi, punteggio, " +
+        "fondamentali) restano quelle della chiusura · Yahoo non pubblica il volume pre-mercato, quindi " +
+        "quella colonna non esiste: un movimento di pre-apertura non si può pesare.",
+      meta_titoli: "{0} titoli", meta_soglia: " — i più scambiati per denaro, da {0} al giorno in su",
+      meta_analizzati: " analizzati", meta_calcolato: " · calcolato il {0}",
+      b_confronto_settore: "confronto per settore", b_confronto_tutto: "confronto sull’intero universo",
+      b_normalizzazione: "normalizzazione {0}", b_bacino: "bacino {0} candidati ({1})",
+      b_sotto_soglie: "{0} sotto le soglie", b_affidabili: "{0} con dati sufficienti",
+      b_pesi_vuoti: "pesi su metriche vuote: {0}",
+      pannello_acceso: "<b>Il pannello è già acceso.</b> Questa copia della pagina è stata aperta " +
+        "dal file, e da lì i comandi non possono funzionare: è la stessa pagina, ma a un indirizzo " +
+        "diverso, e il browser non lascia parlare le due origini. La versione collegata è qui:",
+      apri_collegata: "Apri la pagina con i comandi attivi",
+      nopanel_pubblica: "<b>Questa pagina si aggiorna da sola.</b> I prezzi vengono riscaricati da " +
+        "un’automazione che gira su GitHub — dopo la chiusura di New York e prima dell’apertura — " +
+        "e la pagina viene ricostruita con i dati dentro: non c’è nessun programma da tenere acceso " +
+        "e funziona anche senza rete una volta caricata. La data e l’ora dei prezzi sono dichiarate " +
+        "qui sopra: sono quelle che contano, non il momento in cui apri la pagina.",
+      nopanel: "I comandi sono spenti perché questa pagina non è servita dal pannello: un file HTML " +
+        "aperto con doppio clic non può eseguire programmi sul computer, e per fortuna. Per accenderli " +
+        "fai doppio clic su <b>pannello.command</b>: si riapre la stessa pagina, con i pulsanti attivi.",
+      chiedi_titolo: "Quale titolo vuoi far spiegare?", chiedi_prova: "Su quali titoli provo l’API?",
+      in_corso: "Console — {0} in corso", completato: "completato",
+      uscito: "uscito con codice {0}", non_avviato: "non avviato: {0}",
+      interrotta: "connessione interrotta: {0}",
+      senza_dati_pre: "Questa scheda si riempie con <b>Aggiorna il pre-mercato</b> qui sopra (oppure " +
+        "<code>python3 run.py premarket</code>). Ha senso dalle 10:00 alle 15:30 italiane, quando a New " +
+        "York le contrattazioni di pre-apertura sono in corso. Dettaglio tecnico: {0}",
+      senza_dati: "Non c’è ancora nessun dato da mostrare. Fai doppio clic su <b>pannello.command</b> e " +
+        "premi <b>Aggiorna i prezzi</b>: il primo aggiornamento impiega 5-7 minuti perché costruisce " +
+        "anche la classifica di liquidità. Dettaglio tecnico: {0}",
+      no_pre_titolo: "Nessun dato di pre-mercato.", no_dati_titolo: "Dati non caricati."
+    },
+    en: {
+      titolo: "The most active stocks — by money traded, with a score",
+      titolo_pre: "Pre-market — before New York opens",
+      caricamento: "Loading…", csv: "Download CSV", tema: "Theme",
+      comandi: "Commands", pannello_no: "panel not connected",
+      pannello_si: "panel connected", ferma: "Stop",
+      console: "Console", console_vuota: "Console — nothing has run yet",
+      pulisci: "Clear", niente_eseguito: "No command has run on this page.",
+      cerca: "Search ticker or company", tutti_settori: "All sectors",
+      qualsiasi_cap: "Any market cap", cap_oltre: "Over $100B",
+      cap_10_100: "$10B – $100B", cap_2_10: "$2B – $10B", cap_sotto: "Under $2B",
+      f_prezzo: "Min price", f_dv: "Min $ volume (M)", f_chg_min: "Change % from",
+      f_chg_max: "to", f_relvol: "Relative volume ≥", f_score: "Min score",
+      f_rel: "Reliable data only", azzera: "Clear filters", colonne: "Columns:",
+      prec: "‹ Previous", succ: "Next ›", righe: "rows", tutte: "all",
+      suggerimento: "Click <b>i</b> next to a header for the metric card · " +
+        "click a row for the score breakdown.",
+      pesi_titolo: "Score weights", rileggi: "Reload from file",
+      salva: "Save to scoring.yml", preimp: "Presets:",
+      p_file: "from file", p_value: "Value", p_quality: "Quality",
+      p_growth: "Growth", p_safety: "Balance sheet", p_zero: "clear",
+      pesi_nota: "Move a weight and the ranking above recomputes at once: the percentiles are already " +
+        "in the data, changing weights downloads nothing. Until you save, the score shown is a " +
+        "<b>simulation</b>. Saving rewrites <code>config/scoring.yml</code> and is only available when " +
+        "the page is served by the panel.",
+      scomposizione: "Score breakdown", seleziona: "Select a row in the table.",
+      glossario: "<b>Metric glossary</b> — what it is, how to read it, where it misleads",
+      nav_chiusura: "Yesterday's close", nav_pre: "Pre-market", nav_brand: "Maxoquantic Scoring",
+      pesi_file: "weights from config/scoring.yml", pesi_simulati: "simulated score — weights not saved",
+      somma: "sum {0} across {1} metrics — it does not need to add to 1: it is normalised",
+      senza_pesi: "no active weights: without weights there is no score, only a table",
+      filtri_attivi: "Active filters ({0}):", nessun_filtro: "none — you are seeing the whole computed universe",
+      togli: "Remove this filter", risultati: "{0}–{1} of {2} results", su_titoli: " (of {0} stocks)",
+      nessun_risultato: "no results", pagina: "page {0} of {1}",
+      tabella_vuota: "No stock matches these filters. Remove one above.",
+      col_punteggio: "Score", col_copertura: "Coverage", col_r52: "52 week range",
+      pos_ordinamento: "position in this ordering · score rank: {0} of {1}",
+      pos_intestazione: "Position in the current ordering. Click: back to the score ranking.",
+      cos_e: "What it is", come_si_legge: "How to read it", attenzione: "Watch out",
+      peso: "weight", dato_mancante: "missing data", metrica: "Metric", valore: "Value",
+      percentile: "Percentile", peso_col: "Weight", punti: "Points",
+      settore_nd: "sector n/a", punteggio_no: "score not computable",
+      punteggio_di: "score {0}/100", copertura_di: "coverage {0}% ({1})",
+      posizione_di: "rank {0} of {1}", tutte_colonne: "All columns",
+      colonne_yahoo: "Yahoo's columns", vista_sintesi: "Summary", vista_pre: "Pre-open",
+      cov_completa: "complete", cov_parziale: "partial", cov_insufficiente: "insufficient",
+      dir_alto: "higher is better", dir_basso: "lower is better",
+      dir_fascia: "a band is rewarded, not the maximum", dir_contesto: "context only, not part of the score",
+      chiusura_del: "Closing prices of ", in_seduta_del: "Session prices of ",
+      ore: "at", seduta_chiusa: "(session closed)", seduta_aperta: "(market open: prices are still moving)",
+      pre_del: "Pre-market of ", dato_delle: "· data as of {0} New York",
+      pre_rispetto: "· changes measured against the close of {0}",
+      pre_meta: "{0} of {1} stocks have a pre-open price · every other column (volumes, score, " +
+        "fundamentals) is still yesterday's close · Yahoo does not publish pre-market volume, so that " +
+        "column does not exist: a pre-open move cannot be weighed.",
+      meta_titoli: "{0} stocks", meta_soglia: " — the most traded by money, from {0} a day upwards",
+      meta_analizzati: " analysed", meta_calcolato: " · computed on {0}",
+      b_confronto_settore: "compared within sector", b_confronto_tutto: "compared across the whole universe",
+      b_normalizzazione: "{0} normalisation", b_bacino: "pool of {0} candidates ({1})",
+      b_sotto_soglie: "{0} below thresholds", b_affidabili: "{0} with sufficient data",
+      b_pesi_vuoti: "weights on empty metrics: {0}",
+      pannello_acceso: "<b>The panel is already running.</b> This copy of the page was opened from " +
+        "the file, and the commands cannot work from there: it is the same page at a different " +
+        "address, and the browser will not let the two origins talk. The connected version is here:",
+      apri_collegata: "Open the page with the commands live",
+      nopanel_pubblica: "<b>This page updates itself.</b> Prices are re-downloaded by an automation " +
+        "running on GitHub — after the New York close and before the open — and the page is rebuilt " +
+        "with the data inside it: nothing has to stay running, and it works offline once loaded. The " +
+        "date and time of the prices are stated above: those are the ones that matter, not the moment " +
+        "you open the page.",
+      nopanel: "The commands are off because this page is not served by the panel: an HTML file opened " +
+        "with a double click cannot run programs on your computer, and that is a good thing. To turn " +
+        "them on, double-click <b>pannello.command</b>: the same page reopens with the buttons live.",
+      chiedi_titolo: "Which stock should I explain?", chiedi_prova: "Which tickers should I test the API on?",
+      in_corso: "Console — {0} running", completato: "completed",
+      uscito: "exited with code {0}", non_avviato: "not started: {0}",
+      interrotta: "connection lost: {0}",
+      senza_dati_pre: "This tab fills up with <b>Update the pre-market</b> above (or " +
+        "<code>python3 run.py premarket</code>). It makes sense between 4:00 and 9:30 New York time, " +
+        "while pre-open trading is running. Technical detail: {0}",
+      senza_dati: "There is no data yet. Double-click <b>pannello.command</b> and press <b>Update " +
+        "prices</b>: the first run takes 5-7 minutes because it also builds the liquidity ranking. " +
+        "Technical detail: {0}",
+      no_pre_titolo: "No pre-market data.", no_dati_titolo: "No data loaded."
+    }
+  };
+
+  function t(k) {
+    var v = (T[LANG] && T[LANG][k]) !== undefined ? T[LANG][k] : T.it[k];
+    if (v === undefined) return k;
+    for (var i = 1; i < arguments.length; i++) v = v.split("{" + (i - 1) + "}").join(arguments[i]);
+    return v;
+  }
+  // etichetta e box di una metrica, nella lingua scelta (con ripiego italiano)
+  function mLabel(m) { return (LANG === "en" && m && m.en && m.en.label) || (m && m.label) || ""; }
+  function mBox(m) { return (LANG === "en" && m && m.en && m.en.box) || (m && m.box) || {}; }
+  function gLabel(g, i) {
+    if (LANG !== "en" || !D || !D.catalog.groups_en) return g;
+    var k = D.catalog.groups.indexOf(g);
+    return k >= 0 ? D.catalog.groups_en[k] : g;
+  }
+  function testoStatico() {
+    document.querySelectorAll("[data-i18n]").forEach(function (n) {
+      n.textContent = t(n.getAttribute("data-i18n"));
+    });
+    document.querySelectorAll("[data-i18n-html]").forEach(function (n) {
+      n.innerHTML = t(n.getAttribute("data-i18n-html"));
+    });
+    document.querySelectorAll("[data-i18n-ph]").forEach(function (n) {
+      n.placeholder = t(n.getAttribute("data-i18n-ph"));
+    });
+    document.documentElement.lang = LANG;
+  }
+
+  // ------------------------------------------------------------------ stato
+  var D = null;              // il payload di data.json
+  var CAT = {};              // catalogo metriche, per chiave
+  var COLS = [];             // colonne attualmente mostrate
+  var VIEWS = [];            // insiemi di colonne, derivati dai gruppi del catalogo
+  var view = "attivi";
+  var W_FILE = {};           // i pesi come stanno in config/scoring.yml
+  var W = {};                // i pesi applicati adesso (anche solo simulati)
+  var SCORED = [];           // metriche per cui esistono i percentili nei dati
+  var rowsView = [];         // righe dopo filtri e ordinamento
+  var sortKey = "__score__", sortDesc = true;
+  var page = 0, per = 50;
+  var sel = null;            // ticker selezionato
+  var PANEL = false;         // true se la pagina e' servita da pannello.py
+  var jobId = null, offset = 0;
+
+  var el = function (i) { return document.getElementById(i); };
+  function esc(s) {
+    return String(s === null || s === undefined ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // ------------------------------------------------------------------ dati
+  // Due insiemi di dati, due file. Sono separati di proposito: guardare il
+  // pre-mercato non deve cambiare i numeri della chiusura sotto gli occhi di
+  // chi li sta leggendo, e un aggiornamento del pre-mercato non riscrive il
+  // file su cui si basa la pagina pubblica.
+  var FILE = { chiusura: "data.json", premarket: "data-premarket.json" };
+  var VISTA = "chiusura";
+
+  // Il .json ha bisogno di un server; se la pagina e' aperta con doppio clic
+  // si ricade sul .js gemello, che assegna window.__SCORE_DATA__.
+  function load(nome) {
+    // Pagina autonoma (quella pubblicata): i due insiemi di dati sono gia'
+    // dentro il file, non c'e' niente da scaricare e funziona anche offline.
+    if (window.__DATI__ && window.__DATI__[nome]) {
+      return Promise.resolve(window.__DATI__[nome]);
+    }
+    if (window.__DATI__) {
+      return Promise.reject(new Error("questa copia della pagina non contiene i dati di «" + nome + "»"));
+    }
+    var base = FILE[nome] || FILE.chiusura;
+    return fetch(base, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .catch(function () {
+        return new Promise(function (res, rej) {
+          var el2 = document.createElement("script");
+          el2.src = base.replace(/\.json$/, ".js");
+          el2.onload = function () {
+            var d = window.__SCORE_DATA__;
+            window.__SCORE_DATA__ = null;   // il file gemello riusa la stessa variabile
+            d ? res(d) : rej(new Error("dati vuoti"));
+          };
+          el2.onerror = function () { rej(new Error("nessun dato per «" + nome + "»")); };
+          document.head.appendChild(el2);
+        });
+      });
+  }
+
+  function vaiA(nome) {
+    VISTA = nome;
+    document.querySelectorAll("[data-vista]").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-vista") === nome);
+    });
+    sel = null; page = 0;
+    view = nome === "premarket" ? "pre" : "attivi";
+    scheda = nome === "premarket" ? "pre_rialzi" : "attivi";
+    return load(nome).then(function (d) { boot(d, null); }).catch(function (e) { senzaDati(e); });
+  }
+
+  // ------------------------------------------------------------- formato
+  function fmt(v, m) {
+    if (v === null || v === undefined || v === "") return "–";
+    if (typeof v === "string") return v;
+    var f = m && m.fmt;
+    if (f === "pct") return (v * 100).toFixed(1) + "%";
+    if (f === "mult") return v.toFixed(2) + "×";
+    var a = Math.abs(v);
+    if (f === "money" || f === "int") {
+      if (a >= 1e12) return (v / 1e12).toFixed(2) + " T";
+      if (a >= 1e9) return (v / 1e9).toFixed(2) + " B";
+      if (a >= 1e6) return (v / 1e6).toFixed(1) + " M";
+      if (a >= 1e3) return v.toLocaleString("it-IT", { maximumFractionDigits: 0 });
+      return f === "int" ? String(Math.round(v)) : v.toFixed(2);
+    }
+    return a < 10 ? v.toFixed(2) : v.toLocaleString("it-IT", { maximumFractionDigits: 1 });
+  }
+  function soldi(v) {
+    if (v === null || v === undefined) return "n/d";
+    if (v >= 1e9) return (v / 1e9).toFixed(2) + " mld $";
+    if (v >= 1e6) return (v / 1e6).toFixed(0) + " mln $";
+    return Math.round(v) + " $";
+  }
+  function covClass(c) { return c >= 0.8 ? "ok" : c >= 0.5 ? "mid" : "low"; }
+  function covWord(c) { return t(c >= 0.8 ? "cov_completa" : c >= 0.5 ? "cov_parziale" : "cov_insufficiente"); }
+  function dirWord(d) {
+    return { higher_better: t("dir_alto"), lower_better: t("dir_basso"),
+             target_band: t("dir_fascia"), context: t("dir_contesto") }[d] || "";
+  }
+
+  // ============================================================ PUNTEGGIO
+  // Stessa formula di engine/scoring.py, applicata ai percentili gia' calcolati:
+  //   score    = 100 * somma(w*s) / somma(w dei presenti)
+  //   coverage = somma(w dei presenti) / somma(w totali)
+  // I percentili NON dipendono dai pesi: ricalcolare qui da' esattamente lo
+  // stesso numero di un nuovo `run.py update` con quei pesi, a parita' di
+  // universo e di dati. E' una simulazione fedele, non un'approssimazione.
+  function ricalcola() {
+    var keys = Object.keys(W).filter(function (k) { return W[k] > 0; });
+    var tot = keys.reduce(function (s, k) { return s + W[k]; }, 0);
+    var minCov = (D.meta.min_coverage !== undefined) ? D.meta.min_coverage : 0.5;
+    D.rows.forEach(function (r) {
+      if (!tot) { r._score = null; r._cov = 0; r._rel = false; return; }
+      var num = 0, wsum = 0;
+      keys.forEach(function (k) {
+        var s = r._scores ? r._scores[k] : null;
+        if (s === null || s === undefined) return;
+        num += W[k] * s; wsum += W[k];
+      });
+      r._cov = wsum / tot;
+      r._score = wsum > 0 ? 100 * num / wsum : null;
+      r._rel = !!(r._score !== null && r._cov >= minCov);
+    });
+    // rango con la stessa regola del motore: prima le righe affidabili
+    var ord = D.rows.slice().sort(function (a, b) {
+      if (a._rel !== b._rel) return a._rel ? -1 : 1;
+      return (b._score === null ? -1 : b._score) - (a._score === null ? -1 : a._score);
+    });
+    ord.forEach(function (r, i) { r._rank = i + 1; });
+    statoPesi();
+  }
+
+  function pesiCambiati() {
+    var a = Object.keys(W).filter(function (k) { return W[k] > 0; }).sort();
+    var b = Object.keys(W_FILE).filter(function (k) { return W_FILE[k] > 0; }).sort();
+    if (a.join() !== b.join()) return true;
+    return a.some(function (k) { return Math.abs(W[k] - W_FILE[k]) > 1e-9; });
+  }
+  function statoPesi() {
+    var b = el("sk-w-state");
+    if (pesiCambiati()) {
+      b.textContent = t("pesi_simulati"); b.className = "sk-badge bad";
+    } else {
+      b.textContent = t("pesi_file"); b.className = "sk-badge";
+    }
+    var keys = Object.keys(W).filter(function (k) { return W[k] > 0; });
+    var tot = keys.reduce(function (s, k) { return s + W[k]; }, 0);
+    el("sk-w-tot").textContent = keys.length
+      ? t("somma", tot.toFixed(2), keys.length) : t("senza_pesi");
+  }
+
+  // =============================================================== SCHEDE
+  // Le classifiche di Yahoo (Most Actives, Top Gainers, Top Losers, Trending)
+  // sono screener separati, ognuno con i suoi filtri nascosti. Qui l'universo
+  // e' UNO SOLO - i 150 piu' scambiati per denaro - e la scheda cambia
+  // soltanto la colonna di ordinamento. La nota sotto le schede lo dichiara,
+  // perche' "i maggiori rialzi" di 150 titoli non sono i maggiori rialzi del
+  // mercato, e la differenza conta.
+  var SCHEDE = [
+    { id: "attivi", key: "dollar_volume", desc: true,
+      it: ["Più attivi",
+           "Ordinati per denaro scambiato nella seduta (prezzo × volume), non per numero di azioni: " +
+           "è la correzione dell’errore su cui è costruita la lista «Most Actives» di Yahoo."],
+      en: ["Most active",
+           "Sorted by money traded in the session (price × volume), not by share count: this is the " +
+           "correction of the mistake Yahoo's «Most Actives» list is built on."] },
+    { id: "rialzi", key: "change_pct", desc: true,
+      it: ["Maggiori rialzi",
+           "I rialzi maggiori fra questi 150 titoli, non del mercato intero: l’universo resta quello dei più scambiati."],
+      en: ["Top gainers",
+           "The biggest gains among these 150 stocks, not across the whole market: the universe is still the most traded."] },
+    { id: "ribassi", key: "change_pct", desc: false,
+      it: ["Maggiori ribassi", "I ribassi maggiori fra questi 150 titoli, non del mercato intero."],
+      en: ["Top losers", "The biggest falls among these 150 stocks, not across the whole market."] },
+    { id: "anomali", key: "rel_volume", desc: true,
+      it: ["Volume anomalo",
+           "Volume di oggi diviso la media a 3 mesi. È la misura di attività vera: 30× su un titolo piccolo " +
+           "è un’anomalia, 1× è una giornata qualunque. Yahoo ha la colonna ma non ci ordina sopra."],
+      en: ["Unusual volume",
+           "Today's volume divided by the 3-month average. This is the real activity measure: 30× on a small " +
+           "stock is an anomaly, 1× is an ordinary day. Yahoo has the column but does not sort on it."] },
+    { id: "punteggio", key: "__score__", desc: true,
+      it: ["Punteggio più alto",
+           "L’ordinamento del motore: media pesata dei percentili dentro il settore, con la copertura dati accanto."],
+      en: ["Highest score",
+           "The engine's own ranking: weighted average of percentiles within the sector, with data coverage beside it."] },
+    { id: "capitalizzazione", key: "market_cap", desc: true,
+      it: ["Più grandi", "Per capitalizzazione di mercato."],
+      en: ["Largest", "By market capitalisation."] },
+    // Le due schede del pre-mercato: compaiono solo quando i dati le hanno.
+    { id: "pre_rialzi", key: "premarket_change_pct", desc: true, solo: "premarket",
+      it: ["Rialzi pre-apertura",
+           "Chi apre più in alto di dove ha chiuso ieri. Attenzione: Yahoo non pubblica il volume " +
+           "pre-mercato, quindi non si può sapere se il movimento sia sostenuto da scambi veri o da poche operazioni."],
+      en: ["Pre-open gainers",
+           "Which stocks are opening above yesterday's close. Careful: Yahoo does not publish pre-market " +
+           "volume, so there is no way to tell whether the move is backed by real trading or a handful of orders."] },
+    { id: "pre_ribassi", key: "premarket_change_pct", desc: false, solo: "premarket",
+      it: ["Ribassi pre-apertura",
+           "Chi apre più in basso della chiusura di ieri. Vale la stessa avvertenza: senza volume, " +
+           "un movimento di pre-mercato non si può pesare."],
+      en: ["Pre-open losers",
+           "Which stocks are opening below yesterday's close. Same caveat: without volume, a pre-market " +
+           "move cannot be weighed."] }
+  ];
+  function sLabel(x) { return (x[LANG] || x.it)[0]; }
+  function sNota(x) { return (x[LANG] || x.it)[1]; }
+
+  var scheda = "attivi";
+
+  function schedeVisibili() {
+    return SCHEDE.filter(function (t) {
+      if (t.solo && t.solo !== VISTA) return false;
+      if (VISTA === "premarket" && t.id === "attivi") return true;
+      return true;
+    });
+  }
+  function disegnaSchede() {
+    el("sk-tabs").innerHTML = schedeVisibili().map(function (x) {
+      return '<button class="sk-tab' + (x.id === scheda ? " on" : "") + '" type="button" role="tab" data-tab="' +
+        x.id + '">' + esc(sLabel(x)) + "</button>";
+    }).join("");
+    el("sk-tabs").querySelectorAll("[data-tab]").forEach(function (b) {
+      b.addEventListener("click", function () { applicaScheda(b.getAttribute("data-tab")); });
+    });
+    var att = SCHEDE.filter(function (x) { return x.id === scheda; })[0];
+    el("sk-tab-nota").textContent = att ? sNota(att) : "";
+  }
+  function applicaScheda(id) {
+    var sc = SCHEDE.filter(function (x) { return x.id === id; })[0];
+    if (!sc) return;
+    scheda = id;
+    if (!(sc.key in CAT) && sc.key !== "__score__" && D.columns.indexOf(sc.key) < 0) {
+      // la colonna non e' nei dati: si tiene l'ordinamento attuale invece di
+      // ordinare su una colonna che non esiste
+      disegnaSchede(); disegna(); return;
+    }
+    sortKey = sc.key; sortDesc = sc.desc; page = 0;
+    disegnaSchede(); testata(); disegna();
+  }
+
+  // ============================================================== COLONNE
+  function costruisciViste() {
+    var disponibili = D.columns.filter(function (k) { return k !== "score" && k !== "coverage"; });
+    var ident = ["symbol", "name", "sector"];
+    var perGruppo = {};
+    disponibili.forEach(function (k) {
+      if (ident.indexOf(k) >= 0) return;
+      // minimo e massimo hanno gia' la loro colonna disegnata: nei gruppi
+      // resterebbero due colonne di numeri che dicono la stessa cosa
+      if (k === "week52_low" || k === "week52_high") return;
+      if (k === "premarket_price" || k === "premarket_change_pct") return;
+      var g = (CAT[k] || {}).group || "Altro";
+      (perGruppo[g] = perGruppo[g] || []).push(k);
+    });
+    // La prima vista e' volutamente quella di Most Actives di Yahoo, colonne
+    // e ordine compresi: chi arriva da li' ritrova quello che conosce. Le due
+    // colonne in piu' — denaro scambiato e volume relativo — sono la
+    // differenza del motore, e stanno accanto a quelle di Yahoo per poterle
+    // confrontare a colpo d'occhio.
+    function presenti(lista) {
+      return lista.filter(function (k) { return disponibili.indexOf(k) >= 0; });
+    }
+    VIEWS = [];
+    // Nella scheda del pre-mercato la prima colonna utile e' il prezzo di
+    // pre-apertura accanto alla chiusura da cui si discosta: le due vanno
+    // lette insieme, altrimenti la percentuale non ha riferimento.
+    if (D.columns.indexOf("premarket_price") >= 0) {
+      VIEWS.push({ id: "pre", label: t("vista_pre"),
+        cols: presenti(["premarket_price", "premarket_change_pct", "price", "change_pct",
+                        "volume", "market_cap", "pe_trailing", "dollar_volume"]) });
+    }
+    VIEWS = VIEWS.concat([
+      { id: "attivi", label: t("colonne_yahoo"),
+        cols: presenti(["price", "change_abs", "change_pct", "volume", "avg_volume_3m",
+                        "market_cap", "pe_trailing"])
+                .concat(D.columns.indexOf("week52_position") >= 0 ? ["__r52__"] : [])
+                .concat(presenti(["week52_change", "dollar_volume", "rel_volume"])) },
+      { id: "sintesi", label: t("vista_sintesi"),
+        cols: ["sector"].concat(presenti(["price", "market_cap", "dollar_volume", "rel_volume"])) }
+    ]);
+    if (VIEWS.length && VIEWS[0].id === "pre") view = "pre";
+    (D.catalog.groups || []).forEach(function (g) {
+      if (!perGruppo[g] || !perGruppo[g].length) return;
+      VIEWS.push({ id: "g:" + g, label: gLabel(g), cols: perGruppo[g] });
+    });
+    VIEWS.push({ id: "tutte", label: t("tutte_colonne"),
+                 cols: ["sector"].concat(disponibili.filter(function (k) { return ident.indexOf(k) < 0; })) });
+    el("sk-views").innerHTML = VIEWS.map(function (v) {
+      return '<button class="sk-btn sm" data-view="' + esc(v.id) + '">' + esc(v.label) + "</button>";
+    }).join("");
+    el("sk-views").querySelectorAll("[data-view]").forEach(function (b) {
+      b.addEventListener("click", function () { view = b.getAttribute("data-view"); applicaVista(); });
+    });
+  }
+  function applicaVista() {
+    var v = VIEWS.filter(function (x) { return x.id === view; })[0] || VIEWS[0];
+    COLS = ["symbol", "name", "__score__", "__cov__"].concat(v.cols);
+    el("sk-views").querySelectorAll("[data-view]").forEach(function (b) {
+      b.classList.toggle("on", b.getAttribute("data-view") === view);
+    });
+    testata(); disegna();
+  }
+
+  function testata() {
+    var h = '<th class="l p1" data-k="__rank__" title="' + esc(t("pos_intestazione")) + '">#</th>';
+    COLS.forEach(function (k) {
+      var m = CAT[k] || {}, lab, unit = "", cls = "";
+      if (k === "__score__") { lab = t("col_punteggio"); unit = "/100"; }
+      else if (k === "__cov__") { lab = t("col_copertura"); }
+      else if (k === "__r52__") { lab = t("col_r52"); }
+      else { lab = mLabel(m) || k; unit = m.unit || ""; }
+      if (k === "symbol") cls = "l p2";
+      else if (k === "name" || (m.direction === "context" && !m.unit)) cls = "l";
+      var peso = W[k] > 0 ? ' <span class="sk-w" title="peso nel punteggio">' + W[k] + "</span>" : "";
+      h += '<th class="' + cls + (k === sortKey ? " sorted" : "") + '" data-k="' + esc(k) +
+        '" title="' + esc(lab + (m.direction ? " — " + dirWord(m.direction) : "")) + '">' +
+        '<span class="sk-th-in">' + esc(lab) +
+        (unit && String(lab).indexOf(unit) < 0 ? ' <span class="sk-tick">' + esc(unit) + "</span>" : "") +
+        peso + (k === sortKey ? ' <span class="sk-arr">' + (sortDesc ? "▼" : "▲") + "</span>" : "") +
+        '<button class="sk-i" type="button" data-box="' +
+        esc(k === "__score__" ? "score" : k === "__cov__" ? "coverage"
+            : k === "__r52__" ? "week52_position" : k) +
+        '" aria-expanded="false" aria-label="Cosa indica ' + esc(lab) + '">i</button>' +
+        "</span></th>";
+    });
+    var tr = el("sk-head");
+    tr.innerHTML = h;
+    tr.querySelectorAll("th[data-k]").forEach(function (th) {
+      th.addEventListener("click", function () { ordina(th.getAttribute("data-k")); });
+    });
+    tr.querySelectorAll("[data-box]").forEach(function (b) {
+      b.addEventListener("click", function (e) { e.stopPropagation(); box(b); });
+    });
+  }
+
+  function ordina(k) {
+    if (k === sortKey) sortDesc = !sortDesc;
+    else { sortKey = k; sortDesc = (CAT[k] || {}).direction !== "lower_better"; }
+    // ordinando a mano si esce dalle schede: nessuna deve restare accesa
+    // mostrando una classifica che non e' piu' quella.
+    var att = SCHEDE.filter(function (x) { return x.id === scheda; })[0];
+    if (att && (att.key !== sortKey || att.desc !== sortDesc)) { scheda = null; disegnaSchede(); }
+    page = 0; testata(); disegna();
+  }
+
+  // ------------------------------------------------- box sotto l'intestazione
+  var boxAperto = null;
+  function box(btn) {
+    var key = btn.getAttribute("data-box");
+    document.querySelectorAll(".sk-boxrow").forEach(function (n) { n.remove(); });
+    el("sk-head").querySelectorAll("th").forEach(function (t) { t.classList.remove("sk-hi"); });
+    el("sk-head").querySelectorAll(".sk-i").forEach(function (b) { b.setAttribute("aria-expanded", "false"); });
+    if (boxAperto === key) { boxAperto = null; return; }
+    boxAperto = key;
+    btn.setAttribute("aria-expanded", "true");
+    btn.closest("th").classList.add("sk-hi");
+    var m = CAT[key] || {}, b = mBox(m), w = W[key];
+    var tr = document.createElement("tr");
+    tr.className = "sk-boxrow";
+    tr.innerHTML = '<td colspan="' + (COLS.length + 1) + '"><div class="sk-box">' +
+      '<button class="sk-btn sm sk-box-close" type="button" aria-label="Chiudi">✕</button>' +
+      '<div class="sk-box-h"><strong>' + esc(mLabel(m) || key) + "</strong>" +
+      (m.group ? '<span class="sk-badge">' + esc(gLabel(m.group)) + "</span>" : "") +
+      (m.direction ? '<span class="sk-badge">' + esc(dirWord(m.direction)) + "</span>" : "") +
+      (w > 0 ? '<span class="sk-badge hot">' + t("peso") + " " + w + "</span>" : "") + "</div>" +
+      '<dl class="sk-box-g"><div><dt>' + t("cos_e") + "</dt><dd>" + esc(b.cos_e) + "</dd></div>" +
+      "<div><dt>" + t("come_si_legge") + "</dt><dd>" + esc(b.come_si_legge) + "</dd></div>" +
+      '<div class="warn"><dt>' + t("attenzione") + "</dt><dd>" + esc(b.trappola) + "</dd></div></dl>" +
+      (m.notes ? '<p class="sk-note" style="margin-top:9px;white-space:normal;text-align:left">' +
+                 esc(m.notes) + "</p>" : "") +
+      "</div></td>";
+    var body = el("sk-body");
+    body.insertBefore(tr, body.firstChild);
+    tr.querySelector(".sk-box-close").addEventListener("click", function () { box(btn); });
+  }
+
+  // ================================================================ FILTRI
+  function filtri() {
+    return {
+      q: el("sk-q").value.trim().toLowerCase(),
+      sector: el("sk-sector").value,
+      mcap: el("sk-mcap").value,
+      price: parseFloat(el("sk-price").value),
+      dv: parseFloat(el("sk-dv").value),
+      chgMin: parseFloat(el("sk-chg-min").value),
+      chgMax: parseFloat(el("sk-chg-max").value),
+      relvol: parseFloat(el("sk-relvol").value),
+      score: parseFloat(el("sk-score").value),
+      rel: el("sk-rel").checked
+    };
+  }
+  function applicaFiltri() {
+    var f = filtri();
+    var banda = f.mcap ? f.mcap.split("-").map(Number) : null;
+    return D.rows.filter(function (r) {
+      if (f.rel && !r._rel) return false;
+      if (f.sector && r.sector !== f.sector) return false;
+      if (f.q && ((r.symbol || "") + " " + (r.name || "")).toLowerCase().indexOf(f.q) < 0) return false;
+      if (banda) {
+        var mc = r.market_cap;
+        if (mc === null || mc === undefined) return false;
+        if (banda.length === 1 && mc < banda[0]) return false;
+        if (banda.length === 2 && (mc < banda[0] || mc >= banda[1])) return false;
+      }
+      if (!isNaN(f.price) && !(r.price >= f.price)) return false;
+      if (!isNaN(f.dv) && !(r.dollar_volume >= f.dv * 1e6)) return false;
+      // la variazione della seduta e' salvata in frazione (0.032 = +3,2%),
+      // il campo si compila in punti percentuali: qui si convertono
+      if (!isNaN(f.chgMin) && !(r.change_pct * 100 >= f.chgMin)) return false;
+      if (!isNaN(f.chgMax) && !(r.change_pct * 100 <= f.chgMax)) return false;
+      if (!isNaN(f.relvol) && !(r.rel_volume >= f.relvol)) return false;
+      if (!isNaN(f.score) && !(r._score >= f.score)) return false;
+      return true;
+    });
+  }
+  function chips() {
+    var f = filtri(), c = [];
+    var en = LANG === "en";
+    if (f.q) c.push([(en ? "text «" : "testo «") + f.q + "»", "sk-q"]);
+    if (f.sector) c.push([(en ? "sector " : "settore ") + f.sector, "sk-sector"]);
+    if (f.mcap) c.push([el("sk-mcap").selectedOptions[0].textContent, "sk-mcap"]);
+    if (!isNaN(f.price)) c.push([(en ? "price ≥ $" + f.price : "prezzo ≥ " + f.price + " $"), "sk-price"]);
+    if (!isNaN(f.dv)) c.push([(en ? "volume ≥ $" + f.dv + "M" : "volume ≥ " + f.dv + " mln $"), "sk-dv"]);
+    if (!isNaN(f.chgMin)) c.push([(en ? "change ≥ " + f.chgMin + "% in the session"
+                                      : "variazione ≥ " + f.chgMin + "% nella seduta"), "sk-chg-min"]);
+    if (!isNaN(f.chgMax)) c.push([(en ? "change ≤ " + f.chgMax + "% in the session"
+                                      : "variazione ≤ " + f.chgMax + "% nella seduta"), "sk-chg-max"]);
+    if (!isNaN(f.relvol)) c.push([(en ? "volume ≥ " + f.relvol + "× the 3-month average"
+                                      : "volume ≥ " + f.relvol + "× la media a 3 mesi"), "sk-relvol"]);
+    if (!isNaN(f.score)) c.push([(en ? "score ≥ " : "punteggio ≥ ") + f.score, "sk-score"]);
+    if (f.rel) c.push([(en ? "reliable data only (coverage ≥ " : "solo dati affidabili (copertura ≥ ") +
+      Math.round((D.meta.min_coverage !== undefined ? D.meta.min_coverage : .5) * 100) + "%)", "sk-rel"]);
+    el("sk-chips").innerHTML = "<b>" + t("filtri_attivi", c.length) + "</b>&nbsp;" + (c.length
+      ? c.map(function (x) {
+          return '<span class="sk-chip">' + esc(x[0]) +
+            '<button type="button" data-off="' + x[1] + '" aria-label="' + esc(t("togli")) + '">✕</button></span>';
+        }).join("")
+      : '<span class="sk-note">' + t("nessun_filtro") + "</span>");
+    el("sk-chips").querySelectorAll("[data-off]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var t = el(b.getAttribute("data-off"));
+        if (t.type === "checkbox") t.checked = false; else t.value = "";
+        page = 0; disegna();
+      });
+    });
+  }
+
+  // =============================================================== TABELLA
+  function valore(r, k) {
+    if (k === "__rank__") return r._rank;
+    if (k === "__score__") return r._score;
+    if (k === "__cov__") return r._cov;
+    if (k === "__r52__") return r.week52_position;   // si ordina sulla posizione
+    return r[k];
+  }
+  function disegna() {
+    chips();
+    rowsView = applicaFiltri();
+    rowsView.sort(function (a, b) {
+      var x = valore(a, sortKey), y = valore(b, sortKey);
+      if (x === null || x === undefined) return 1;
+      if (y === null || y === undefined) return -1;
+      if (typeof x === "string") return sortDesc ? String(y).localeCompare(x) : x.localeCompare(String(y));
+      return sortDesc ? y - x : x - y;
+    });
+
+    per = parseInt(el("sk-per").value, 10) || 0;
+    var tot = rowsView.length;
+    var np = per ? Math.max(1, Math.ceil(tot / per)) : 1;
+    if (page >= np) page = np - 1;
+    if (page < 0) page = 0;
+    var da = per ? page * per : 0, a = per ? Math.min(tot, da + per) : tot;
+
+    var h = "";
+    rowsView.slice(da, a).forEach(function (r, i) {
+      h += '<tr data-sym="' + esc(r.symbol) + '" class="' + (r._rel ? "" : "dim ") +
+           (r.symbol === sel ? "sel" : "") + '">';
+      // La posizione nella lista che si sta guardando, non il rango di
+      // punteggio: ordinando per denaro scambiato, vedere "18" sulla prima
+      // riga e' solo un modo di sembrare rotti. Il rango del punteggio resta
+      // nella scomposizione della riga.
+      h += '<td class="l p1" title="' + esc(t("pos_ordinamento", r._rank, D.rows.length)) +
+           '">' + (da + i + 1) + "</td>";
+      COLS.forEach(function (k) {
+        if (k === "__score__") {
+          h += "<td>" + (r._score === null ? "–" :
+            '<span class="sk-meter"><span class="trk"><i class="fil" style="width:' +
+            Math.max(2, Math.min(100, r._score)) + '%"></i></span><span class="val">' +
+            r._score.toFixed(0) + "</span></span>") + "</td>";
+          return;
+        }
+        if (k === "__cov__") {
+          h += '<td><span class="sk-cov" title="copertura ' + covWord(r._cov) + '"><span class="sk-dot ' +
+               covClass(r._cov) + '"></span>' + Math.round(r._cov * 100) + "%</span></td>";
+          return;
+        }
+        if (k === "__r52__") {
+          var lo = r.week52_low, hi = r.week52_high, pos = r.week52_position;
+          h += "<td>" + (pos === null || pos === undefined ? "–" :
+            '<span class="sk-r52" title="minimo ' + fmt(lo) + " $ · massimo " + fmt(hi) +
+            " $ · il prezzo di oggi sta al " + Math.round(pos * 100) + '% dell’intervallo">' +
+            '<span class="lo">' + esc(fmt(lo)) + '</span><span class="trk">' +
+            '<i class="mk" style="left:' + Math.max(0, Math.min(100, pos * 100)) + '%"></i>' +
+            '</span><span class="hi">' + esc(fmt(hi)) + "</span></span>") + "</td>";
+          return;
+        }
+        var m = CAT[k] || {}, v = r[k], cls = "";
+        if (k === "symbol") cls = "l p2";
+        else if (k === "name" || (m.direction === "context" && !m.unit)) cls = "l";
+        var testo = esc(fmt(v, m));
+        if ((k === "change_pct" || k === "week52_change" || k === "premarket_change_pct")
+            && typeof v === "number")
+          testo = '<span class="' + (v >= 0 ? "sk-pos" : "sk-neg") + '">' +
+            (v >= 0 ? "▲ +" : "▼ ") + testo + "</span>";
+        if (k === "change_abs" && typeof v === "number")
+          testo = '<span class="' + (v >= 0 ? "sk-pos" : "sk-neg") + '">' + (v >= 0 ? "+" : "") + testo + "</span>";
+        h += '<td class="' + cls + '">' + testo + "</td>";
+      });
+      h += "</tr>";
+    });
+    el("sk-body").innerHTML = h || '<tr><td class="sk-empty" colspan="' + (COLS.length + 1) +
+      '">' + t("tabella_vuota") + "</td></tr>";
+    el("sk-body").querySelectorAll("tr[data-sym]").forEach(function (tr) {
+      tr.addEventListener("click", function () { dettaglio(tr.getAttribute("data-sym")); });
+    });
+
+    el("sk-count").textContent = tot
+      ? t("risultati", da + 1, a, tot) + (tot < D.rows.length ? t("su_titoli", D.rows.length) : "")
+      : t("nessun_risultato");
+    el("sk-range").textContent = tot ? t("pagina", page + 1, np) : "—";
+    el("sk-prev").disabled = page <= 0;
+    el("sk-next").disabled = page >= np - 1;
+    boxAperto = null;
+  }
+
+  // ============================================================= DETTAGLIO
+  function dettaglio(sym) {
+    sel = sym;
+    var r = D.rows.filter(function (x) { return x.symbol === sym; })[0];
+    if (!r) return;
+    var keys = Object.keys(W).filter(function (k) { return W[k] > 0; })
+                 .sort(function (a, b) { return W[b] - W[a]; });
+    var tot = keys.reduce(function (s, k) {
+      var v = r._scores ? r._scores[k] : null;
+      return s + ((v === null || v === undefined) ? 0 : W[k]);
+    }, 0) || 1;
+
+    var h = "<h3>" + esc(r.symbol) + " — " + esc(r.name || "") + "</h3>" +
+      '<p class="sk-note">' + esc(r.sector || t("settore_nd")) + " · " +
+      (r._score === null ? t("punteggio_no") : t("punteggio_di", r._score.toFixed(2))) +
+      " · " + t("copertura_di", Math.round(r._cov * 100), covWord(r._cov)) +
+      " · " + t("posizione_di", r._rank, D.rows.length) + "</p>" +
+      '<table class="sk-brk"><thead><tr><th>' + t("metrica") + "</th><th>" + t("valore") +
+      "</th><th>" + t("percentile") + "</th><th>" + t("peso_col") + "</th><th>" + t("punti") +
+      "</th></tr></thead><tbody>";
+    keys.forEach(function (k) {
+      var m = CAT[k] || { label: k }, s = r._scores ? r._scores[k] : null;
+      if (s === null || s === undefined) {
+        h += '<tr class="miss"><td>' + esc(mLabel(m) || k) + "</td><td>" + t("dato_mancante") +
+             "</td><td>–</td><td>" + W[k] + "</td><td>0.00</td></tr>";
+      } else {
+        h += "<tr><td>" + esc(mLabel(m) || k) + "</td><td>" + esc(fmt(r[k], m)) + "</td>" +
+             '<td><span class="bar"><i style="width:' + (s * 100).toFixed(0) + '%"></i></span> ' +
+             (s * 100).toFixed(0) + "%</td><td>" + W[k] + "</td><td>" +
+             (100 * W[k] * s / tot).toFixed(2) + "</td></tr>";
+      }
+    });
+    h += "</tbody></table><p class=\"sk-note\" style=\"margin-top:9px\">Percentile calcolato " +
+      (D.meta.peer_group === "sector"
+        ? "dentro il settore " + esc(r.sector || "—") + " (sotto " + D.meta.min_peers +
+          " titoli si ricade sull’universo intero)"
+        : "sull’intero universo") +
+      ". Il peso di una metrica mancante viene redistribuito sulle presenti: per questo la somma " +
+      "dei punti fa il punteggio, e la copertura scende." +
+      (PANEL ? " Stessa scomposizione da riga di comando: <code>python run.py explain " +
+               esc(r.symbol) + "</code>." : "") + "</p>";
+    el("sk-detail").innerHTML = h;
+    disegna();
+  }
+
+  // ================================================================== PESI
+  // Preimpostazioni: quattro modi diversi di guardare le stesse aziende.
+  // Non sono raccomandazioni, sono punti di partenza da cui muovere i cursori.
+  var PRESET = {
+    value:   { ev_ebitda: .20, pe_forward: .15, pe_trailing: .10, fcf_yield: .20, ps: .05,
+               pb: .05, roa: .10, net_margin: .10, debt_to_equity: .05 },
+    quality: { roa: .18, roe: .12, roic: .12, gross_margin: .16, net_margin: .16,
+               fcf_yield: .12, debt_to_equity: .08, current_ratio: .06 },
+    growth:  { revenue_growth: .28, earnings_growth: .22, gross_margin: .12, net_margin: .08,
+               fcf_yield: .10, ev_ebitda: .10, pe_forward: .10 },
+    safety:  { debt_to_equity: .24, current_ratio: .18, fcf_yield: .16, net_margin: .12,
+               roa: .12, gross_margin: .10, ev_ebitda: .08 }
+  };
+
+  function disegnaPesi() {
+    var gruppi = {}, h = "<tr><th>" + t("metrica") + "</th><th>" + t("peso_col") +
+      "</th><th></th><th>" + (LANG === "en" ? "Share" : "Quota") + "</th></tr>";
+    (D.catalog.metrics || []).forEach(function (m) {
+      if (m.direction === "context" || m.key === "score" || m.key === "coverage") return;
+      (gruppi[m.group] = gruppi[m.group] || []).push(m);
+    });
+    (D.catalog.groups || []).forEach(function (g) {
+      if (!gruppi[g]) return;
+      h += '<tr class="sk-grp"><td colspan="4">' + esc(gLabel(g)) + "</td></tr>";
+      gruppi[g].forEach(function (m) {
+        var p = W[m.key] || 0;
+        var hasData = SCORED.indexOf(m.key) >= 0;
+        var d = { higher_better: "▲", lower_better: "▼", target_band: "≈" }[m.direction] || "";
+        h += '<tr data-k="' + esc(m.key) + '" class="' + (p ? "" : "off ") + (hasData ? "" : "nodata") + '">' +
+          '<td><span class="sk-dir" title="' + esc(dirWord(m.direction)) + '">' + d + "</span>" +
+          esc(mLabel(m)) + (hasData ? "" : ' <span class="sk-note">(' +
+            (LANG === "en" ? "no data" : "nessun dato") + ")</span>") + "</td>" +
+          '<td><input type="number" step="0.01" min="0" max="1" value="' + p + '"' +
+          (hasData ? "" : " disabled") + "></td>" +
+          '<td><input type="range" min="0" max="0.4" step="0.01" value="' + Math.min(0.4, p) + '"' +
+          (hasData ? "" : " disabled") + "></td>" +
+          '<td class="q">–</td></tr>';
+      });
+    });
+    el("sk-pesi").innerHTML = h;
+    el("sk-pesi").querySelectorAll("tr[data-k]").forEach(function (tr) {
+      var num = tr.querySelector("input[type=number]"), rng = tr.querySelector("input[type=range]");
+      function cambia(v, daSlider) {
+        var k = tr.getAttribute("data-k"), f = parseFloat(v);
+        W[k] = (isNaN(f) || f <= 0) ? 0 : f;
+        if (daSlider) num.value = W[k]; else rng.value = Math.min(0.4, W[k]);
+        tr.classList.toggle("off", !W[k]);
+        ricalcola(); quote(); testata(); disegna();
+        if (sel) dettaglio(sel);
+      }
+      num.addEventListener("input", function () { cambia(num.value, false); });
+      rng.addEventListener("input", function () { cambia(rng.value, true); });
+    });
+    quote();
+  }
+  function quote() {
+    var tot = Object.keys(W).reduce(function (s, k) { return s + (W[k] > 0 ? W[k] : 0); }, 0);
+    el("sk-pesi").querySelectorAll("tr[data-k]").forEach(function (tr) {
+      var k = tr.getAttribute("data-k");
+      tr.querySelector(".q").textContent = (W[k] > 0 && tot) ? (100 * W[k] / tot).toFixed(1) + "%" : "–";
+    });
+  }
+  function applicaPesi(nuovi) {
+    W = {};
+    Object.keys(nuovi).forEach(function (k) {
+      if (nuovi[k] > 0 && SCORED.indexOf(k) >= 0) W[k] = nuovi[k];
+    });
+    ricalcola(); disegnaPesi(); testata(); disegna();
+    if (sel) dettaglio(sel);
+  }
+  function msgPesi(t, ok) {
+    var m = el("sk-w-msg"); m.textContent = t; m.className = "sk-msg " + (ok ? "ok" : "err");
+  }
+
+  // ============================================== IL PANNELLO (pannello.bat)
+  // Se la pagina e' servita da pannello.py, la stessa origine espone /api/*:
+  // da qui si salvano i pesi e si lanciano i comandi del motore. Aperta in
+  // qualunque altro modo, la pagina resta una pagina: legge e basta.
+  function api(url, opt) {
+    return fetch(url, opt).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok || j.errore) throw new Error(j.errore || ("HTTP " + r.status));
+        return j;
+      });
+    });
+  }
+  // Ogni pulsante e' una coppia (comando del pannello + argomenti gia'
+  // pronti). Le etichette sono quelle di chi usa la pagina, non i nomi dei
+  // sottocomandi: "Aggiorna i prezzi" invece di "update".
+  var AZIONI = [
+    { id: "update", cmd: "update", args: {}, primaria: true,
+      it: ["Aggiorna i prezzi",
+           "L’ultima chiusura delle stesse società, e i punteggi rifatti. ~40 secondi, immediato se i prezzi sono stati scaricati da meno di 6 ore."],
+      en: ["Update prices",
+           "The latest close of the same companies, with the scores recomputed. ~40 seconds, instant if prices were downloaded less than 6 hours ago."] },
+    { id: "update_fresh", cmd: "update", args: { refresh_quotes: true },
+      it: ["Riscarica i prezzi adesso", "Come sopra ma ignora i prezzi in cache: da usare appena chiude la borsa. ~40 secondi."],
+      en: ["Re-download prices now", "As above but ignoring cached prices: use it right after the closing bell. ~40 seconds."] },
+    { id: "premarket", cmd: "premarket", args: {},
+      it: ["Aggiorna il pre-mercato", "Prezzi delle contrattazioni prima dell’apertura, per la scheda Pre-mercato. ~1 minuto."],
+      en: ["Update the pre-market", "Prices from trading before the opening bell, for the Pre-market tab. ~1 minute."] },
+    { id: "update_refresh", cmd: "update", args: { refresh: true },
+      it: ["Aggiorna e ricalcola quali società", "Come sopra, ma rifà prima la classifica dei più scambiati. 2-4 minuti."],
+      en: ["Update and rebuild the list", "As above, but it first rebuilds the ranking of the most traded. 2-4 minutes."] },
+    { id: "universe", cmd: "universe", args: {},
+      it: ["Solo la classifica di liquidità", "Ricostruisce chi sono i più scambiati, senza toccare i punteggi. 2-4 minuti."],
+      en: ["Liquidity ranking only", "Rebuilds which stocks are the most traded, without touching the scores. 2-4 minutes."] },
+    { id: "explain", cmd: "explain", args: {}, chiedi: "ticker",
+      it: ["Spiega un titolo", "Scompone il punteggio metrica per metrica. Immediato."],
+      en: ["Explain a stock", "Breaks the score down metric by metric. Instant."] },
+    { id: "doctor", cmd: "doctor", args: {}, chiedi: "prova",
+      it: ["Verifica i campi dell’API", "Dice cosa Yahoo risponde davvero oggi. Da lanciare se i dati sembrano sbagliati."],
+      en: ["Check the API fields", "Says what Yahoo actually returns today. Run it when the data looks wrong."] },
+    { id: "cache_quote", cmd: "cache", args: { kind: "quote" },
+      it: ["Scarta i prezzi in cache", "Forza il riscarico delle quote al prossimo aggiornamento. Immediato."],
+      en: ["Drop cached prices", "Forces quotes to be downloaded again on the next update. Instant."] },
+    { id: "cache_all", cmd: "cache", args: {},
+      conferma: { it: "Svuota TUTTA la cache: il prossimo aggiornamento riscarica anche i fondamentali e impiega 5-7 minuti. Procedo?",
+                  en: "This empties the WHOLE cache: the next update re-downloads the fundamentals too and takes 5-7 minutes. Go ahead?" },
+      it: ["Svuota tutta la cache", "Anche fondamentali e universo. Il run successivo sarà lungo."],
+      en: ["Empty the whole cache", "Fundamentals and universe included. The next run will be slow."] },
+    { id: "fields", cmd: "fields", args: {},
+      it: ["Elenco delle metriche", "Il catalogo completo, con la direzione di ciascuna. Immediato."],
+      en: ["List the metrics", "The full catalogue, with each metric's direction. Instant."] },
+    { id: "test", cmd: "test", args: {},
+      it: ["Esegui i test", "La suite completa, offline. Utile dopo aver cambiato qualcosa."],
+      en: ["Run the tests", "The full suite, offline. Useful after changing something."] }
+  ];
+  function aTit(a) { return (a[LANG] || a.it)[0]; }
+  function aNota(a) { return (a[LANG] || a.it)[1]; }
+
+  function disegnaAzioni(attivi) {
+    el("sk-cmds").innerHTML = AZIONI.map(function (a) {
+      return '<button class="sk-act' + (a.primaria ? " primary" : "") + '" type="button" data-cmd="' +
+        a.id + '"' + (attivi ? "" : " disabled") + '><b>' + esc(aTit(a)) + "</b><span>" +
+        esc(aNota(a)) + "</span></button>";
+    }).join("");
+    if (!attivi) return;
+    el("sk-cmds").querySelectorAll("[data-cmd]").forEach(function (b) {
+      b.addEventListener("click", function () { esegui(b.getAttribute("data-cmd")); });
+    });
+  }
+
+  function collegaPannello() {
+    // La pagina autonoma (dati incorporati) non ha nessun pannello dietro:
+    // interrogarlo produrrebbe solo due errori rossi in console su ogni sito
+    // che la ospita. Si dichiara subito lo stato, senza bussare a nessuno.
+    if (window.__DATI__) {
+      PANEL = false;
+      // Undici pulsanti spenti su una pagina pubblica sono solo ingombro:
+      // restano la spiegazione e la console via, il resto sparisce.
+      el("sk-cmds").innerHTML = "";
+      el("sk-cons-fold").hidden = true;
+      el("sk-stop").hidden = true;
+      el("sk-engine-state").hidden = true;
+      el("sk-engine").querySelector("h2").hidden = true;
+      var nn = el("sk-nopanel");
+      nn.innerHTML = t("nopanel_pubblica");
+      nn.hidden = false;
+      return Promise.resolve();
+    }
+    return api("/api/stato").then(function () {
+      PANEL = true;
+      el("sk-w-save").hidden = false;
+      el("sk-engine-state").textContent = t("pannello_si");
+      el("sk-engine-state").className = "sk-badge ok";
+      el("sk-nopanel").hidden = true;
+      disegnaAzioni(true);
+    }).catch(function () {
+      PANEL = false;
+      disegnaAzioni(false);
+      var n = el("sk-nopanel");
+      n.innerHTML = t("nopanel");
+      n.hidden = false;
+      cercaPannello(n);        // magari e' acceso, solo a un altro indirizzo
+    });
+  }
+
+  // Se questa pagina e' stata aperta con doppio clic (file://) i comandi non
+  // possono funzionare: e' la STESSA pagina, ma a un indirizzo diverso da
+  // quello del pannello, e il browser non lascia parlare le due origini.
+  // Invece di lasciare dei pulsanti spenti e una spiegazione, qui si prova a
+  // caricare uno scriptino dal pannello: se risponde, il pannello e' acceso e
+  // si offre il collegamento giusto da cliccare.
+  function cercaPannello(n) {
+    // Vale per qualunque origine che non sia il pannello stesso: il doppio
+    // clic sul file, ma anche una pagina servita da un altro server locale.
+    // Da una pagina in https (GitHub Pages) il browser blocca la richiesta a
+    // 127.0.0.1 e non succede nulla: resta il riquadro giallo, che li' e' la
+    // spiegazione giusta.
+    var porte = [8765, 8766], trovato = false;
+    porte.forEach(function (porta) {
+      var sc = document.createElement("script");
+      sc.src = "http://127.0.0.1:" + porta + "/api/vivo.js";
+      sc.onload = function () {
+        if (trovato || !window.__PANNELLO_ATTIVO__) return;
+        trovato = true;
+        var url = "http://127.0.0.1:" + porta + "/";
+        n.className = "sk-panel-acceso";
+        n.innerHTML = t("pannello_acceso") +
+          ' <a class="sk-btn primary" style="text-decoration:none; display:inline-block; margin-top:8px" href="' +
+          url + '">' + t("apri_collegata") + " → " + url + "</a>";
+      };
+      document.head.appendChild(sc);
+    });
+  }
+
+  function esegui(id) {
+    var a = AZIONI.filter(function (x) { return x.id === id; })[0];
+    if (!a) return;
+    var args = JSON.parse(JSON.stringify(a.args || {}));
+    if (a.chiedi === "ticker") {
+      var e = prompt(t("chiedi_titolo"), sel || (D && D.rows[0] ? D.rows[0].symbol : "AAPL"));
+      if (!e) return;
+      args.tickers = e;
+    }
+    if (a.chiedi === "prova") {
+      var pr = prompt(t("chiedi_prova"), "AAPL MSFT NVDA");
+      if (!pr) return;
+      args.tickers = pr;
+    }
+    if (a.conferma && !confirm(a.conferma[LANG] || a.conferma.it)) return;
+
+    el("sk-out").textContent = ""; offset = 0;
+    el("sk-cons-fold").open = true;
+    el("sk-cons-t").textContent = aTit(a);
+    el("sk-cons-sum").textContent = t("in_corso", aTit(a));
+    el("sk-cons-s").textContent = "";
+    el("sk-spin").style.display = "block";
+    document.querySelectorAll("[data-cmd]").forEach(function (b) { b.disabled = true; });
+    el("sk-stop").disabled = false;
+    api("/api/avvia", { method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ cmd: a.cmd, args: args }) })
+      .then(function (j) { jobId = j.id; sfoglia(); })
+      .catch(function (err) { fine(t("non_avviato", err.message)); });
+  }
+  function sfoglia() {
+    if (!jobId) return;
+    api("/api/log?id=" + encodeURIComponent(jobId) + "&da=" + offset).then(function (j) {
+      if (j.testo) {
+        var pre = el("sk-out");
+        var giu = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 30;
+        pre.textContent += j.testo;
+        if (giu) pre.scrollTop = pre.scrollHeight;
+      }
+      offset = j.da;
+      if (j.finito) {
+        fine(j.rc === 0 ? t("completato") : t("uscito", j.rc));
+        if (j.rc === 0) ricarica();
+      } else setTimeout(sfoglia, 600);
+    }).catch(function (e) { fine(t("interrotta", e.message)); });
+  }
+  function fine(nota) {
+    jobId = null;
+    el("sk-spin").style.display = "none";
+    el("sk-cons-s").textContent = nota;
+    el("sk-cons-sum").textContent = "Console — " + el("sk-cons-t").textContent + ": " + nota;
+    document.querySelectorAll("[data-cmd]").forEach(function (b) { b.disabled = !PANEL; });
+    el("sk-stop").disabled = true;
+  }
+  function ricarica() {
+    // Dopo un update i dati sono cambiati: si ricarica il payload tenendo i
+    // pesi che l'utente sta simulando in questo momento.
+    var simulati = pesiCambiati() ? JSON.parse(JSON.stringify(W)) : null;
+    window.__SCORE_DATA__ = null;
+    load(VISTA).then(function (d) { boot(d, simulati); }).catch(function (e) { senzaDati(e); });
+  }
+
+  // ================================================================== CSV
+  function csv() {
+    var extra = COLS.filter(function (k) {
+      return k.indexOf("__") !== 0 && ["symbol", "name", "sector"].indexOf(k) < 0;
+    });
+    var cols = ["rank", "symbol", "name", "sector", "score", "coverage"].concat(extra);
+    var righe = [cols.join(";")];
+    rowsView.forEach(function (r) {
+      righe.push(cols.map(function (k) {
+        var v = k === "rank" ? r._rank
+              : k === "score" ? (r._score === null ? "" : r._score.toFixed(2))
+              : k === "coverage" ? (r._cov * 100).toFixed(0)
+              : r[k];
+        if (v === null || v === undefined) return "";
+        return typeof v === "string" ? '"' + v.replace(/"/g, '""') + '"' : String(v).replace(".", ",");
+      }).join(";"));
+    });
+    var intestazione = "# " + rowsView.length + " righe su " + D.rows.length + " · generato " +
+      D.generated_at + " · pesi " + JSON.stringify(W) +
+      (pesiCambiati() ? " (SIMULATI, non salvati in scoring.yml)" : " (da scoring.yml)");
+    var blob = new Blob(["﻿" + intestazione + "\n" + righe.join("\n")],
+                        { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "screener-" + String(D.generated_at || "").slice(0, 10) + ".csv";
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+
+  // ============================================================= GLOSSARIO
+  function glossario() {
+    var byGroup = {}, h = "";
+    D.catalog.metrics.forEach(function (m) { (byGroup[m.group] = byGroup[m.group] || []).push(m); });
+    D.catalog.groups.forEach(function (g) {
+      if (!byGroup[g]) return;
+      h += '<p class="sk-grp-t">' + esc(gLabel(g)) + '</p><div class="sk-gloss">';
+      byGroup[g].forEach(function (m) {
+        var lab = mLabel(m), b = mBox(m);
+        h += '<div class="sk-card sk-gcard"><div class="sk-box-h"><strong>' + esc(lab) + "</strong>" +
+          (m.unit && String(lab).indexOf(m.unit) < 0
+            ? '<span class="sk-badge">' + esc(m.unit) + "</span>" : "") +
+          (W[m.key] > 0 ? '<span class="sk-badge hot">' + t("peso") + " " + W[m.key] + "</span>" : "") + "</div>" +
+          '<dl class="sk-box-g"><div><dt>' + t("cos_e") + "</dt><dd>" + esc(b.cos_e) + "</dd></div>" +
+          "<div><dt>" + t("come_si_legge") + "</dt><dd>" + esc(b.come_si_legge) + "</dd></div>" +
+          '<div class="warn"><dt>' + t("attenzione") + "</dt><dd>" + esc(b.trappola) + "</dd></div></dl></div>";
+      });
+      h += "</div>";
+    });
+    el("sk-gloss").innerHTML = h;
+  }
+
+  // ================================================================= AVVIO
+  function boot(data, pesiSimulati) {
+    D = data;
+    CAT = {};
+    D.catalog.metrics.forEach(function (m) { CAT[m.key] = m; });
+    SCORED = D.meta.scored_keys || Object.keys(D.meta.weights || {});
+    W_FILE = JSON.parse(JSON.stringify(D.meta.weights || {}));
+    W = JSON.parse(JSON.stringify(pesiSimulati || W_FILE));
+
+    // Un dato finto non deve poter sembrare vero: se non viene da una fonte di
+    // mercato, la pagina lo dichiara in cima, prima di qualunque numero.
+    var b = el("sk-demo");
+    if (!D.meta.provider || D.meta.provider === "local") {
+      b.innerHTML = "<b>Attenzione: questi non sono dati di mercato.</b> Provengono dal provider «" +
+        esc(D.meta.provider || "sconosciuto") + "»" +
+        (D.meta.config ? " (" + esc(D.meta.config) + ")" : "") +
+        ", cioè dal fixture di esempio. Per i titoli reali: «Aggiorna i titoli» dal pannello, " +
+        "oppure <code>python run.py update</code>.";
+      b.hidden = false;
+    } else {
+      b.hidden = true;
+    }
+
+    var d = new Date(D.generated_at);
+    var u = D.meta.universe || {};
+
+    // A QUALE SEDUTA si riferiscono i prezzi. E' la prima cosa che si legge:
+    // un aggiornamento lanciato stamattina mostra la chiusura di ieri a New
+    // York, e la data del file non lo direbbe.
+    var ses = D.meta.sessione;
+    var pm = D.meta.premarket;
+    if (pm) {
+      // Nel pre-mercato la data che conta e' quella di OGGI, e va detto
+      // rispetto a cosa si misura la percentuale: la chiusura precedente.
+      var q = pm.quando || {};
+      var gp = q.data ? new Date(q.data + "T12:00:00") : null;
+      var gc = ses && ses.data ? new Date(ses.data + "T12:00:00") : null;
+      var fdata = function (g, iso) {
+        return (!g || isNaN(g)) ? (iso || "?") :
+          g.toLocaleDateString(LANG === "en" ? "en-GB" : "it-IT",
+                               { day: "numeric", month: "long", year: "numeric" });
+      };
+      el("sk-seduta").innerHTML = '<span class="sk-seduta">' + t("pre_del") +
+        esc(fdata(gp, q.data)) + "</span>" +
+        (q.ora ? ' <span class="sk-note">' + esc(t("dato_delle", q.ora)) + "</span>" : "") +
+        ' <span class="sk-note">' + esc(t("pre_rispetto", fdata(gc, ses && ses.data))) + "</span>";
+      el("sk-meta").textContent = t("pre_meta", pm.righe_con_dato, pm.righe);
+    } else if (ses && ses.data) {
+      var g = new Date(ses.data + "T12:00:00");
+      var quando = isNaN(g) ? ses.data : g.toLocaleDateString(LANG === "en" ? "en-GB" : "it-IT",
+        { day: "numeric", month: "long", year: "numeric" });
+      el("sk-seduta").innerHTML = '<span class="sk-seduta">' +
+        t(ses.chiusa ? "chiusura_del" : "in_seduta_del") + esc(quando) + "</span>" +
+        ' <span class="sk-note">· ' + t("ore") + " " + esc(ses.ora) + " " +
+        esc(String(ses.fuso).split("/").pop().replace(/_/g, " ")) + " " +
+        t(ses.chiusa ? "seduta_chiusa" : "seduta_aperta") + "</span>";
+    } else if (!pm) {
+      el("sk-seduta").innerHTML = '<span class="sk-seduta">Seduta non dichiarata</span>' +
+        ' <span class="sk-note">· i prezzi sono quelli dell’ultimo aggiornamento, ' +
+        "ma il motore non ha potuto stabilire a quale giornata di borsa appartengono</span>";
+    }
+
+    if (!pm) el("sk-meta").textContent = t("meta_titoli", D.meta.n) +
+      (u.taglio_dollar_volume ? t("meta_soglia", soldi(u.taglio_dollar_volume)) : t("meta_analizzati")) +
+      t("meta_calcolato", isNaN(d) ? D.generated_at : d.toLocaleString(LANG === "en" ? "en-GB" : "it-IT"));
+
+    // La testata dichiara l'universo: da dove viene e quanto e' stato scartato.
+    var bad = ['<span class="sk-badge">' +
+      t(D.meta.peer_group === "sector" ? "b_confronto_settore" : "b_confronto_tutto") + "</span>",
+      '<span class="sk-badge">' + esc(t("b_normalizzazione", D.meta.method || "percentile")) + "</span>"];
+    if (u.bacino) bad.push('<span class="sk-badge">' +
+      esc(t("b_bacino", u.bacino, u.fonte_bacino || "?")) + "</span>");
+    if (u.sotto_le_soglie) bad.push('<span class="sk-badge">' +
+      esc(t("b_sotto_soglie", u.sotto_le_soglie)) + "</span>");
+    if (D.meta.n_reliable !== undefined) bad.push('<span class="sk-badge">' +
+      esc(t("b_affidabili", D.meta.n_reliable)) + "</span>");
+    if ((D.meta.empty_weights || []).length) bad.push('<span class="sk-badge bad">' +
+      esc(t("b_pesi_vuoti", D.meta.empty_weights.join(", "))) + "</span>");
+    el("sk-badges").innerHTML = bad.join("");
+    el("sk-disc").textContent = D.disclaimer || "";
+
+    var secs = [];
+    D.rows.forEach(function (r) { if (r.sector && secs.indexOf(r.sector) < 0) secs.push(r.sector); });
+    var cur = el("sk-sector").value;
+    el("sk-sector").innerHTML = '<option value="">Tutti i settori</option>' +
+      secs.sort().map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + "</option>"; }).join("");
+    el("sk-sector").value = cur;
+
+    el("sk-title").textContent = t(D.meta.premarket ? "titolo_pre" : "titolo");
+    document.title = el("sk-title").textContent;
+    ricalcola();
+    costruisciViste();
+    disegnaPesi();
+    applicaVista();
+    if (scheda) applicaScheda(scheda); else disegnaSchede();
+    glossario();
+    if (sel) dettaglio(sel);
+  }
+
+  // ---------------------------------------------------------------- eventi
+  ["sk-q", "sk-sector", "sk-mcap", "sk-price", "sk-dv", "sk-chg-min", "sk-chg-max",
+   "sk-relvol", "sk-score", "sk-rel", "sk-per"]
+    .forEach(function (id) { el(id).addEventListener("input", function () { page = 0; disegna(); }); });
+  el("sk-reset").addEventListener("click", function () {
+    ["sk-q", "sk-sector", "sk-mcap", "sk-price", "sk-dv", "sk-chg-min", "sk-chg-max",
+     "sk-relvol", "sk-score"].forEach(function (i) { el(i).value = ""; });
+    el("sk-rel").checked = false;
+    page = 0; disegna();
+  });
+  el("sk-prev").addEventListener("click", function () { page--; disegna(); });
+  el("sk-next").addEventListener("click", function () { page++; disegna(); });
+  el("sk-csv").addEventListener("click", csv);
+  // Il tema si ricorda: chiaro di partenza, scuro a un clic. Prima la scelta
+  // si perdeva a ogni ricarica, il che rendeva il pulsante quasi inutile.
+  function applicaTema(nome) {
+    if (nome === "dark") document.documentElement.setAttribute("data-theme", "dark");
+    else document.documentElement.setAttribute("data-theme", "light");
+    localStorage.setItem("skTema", nome);
+  }
+  applicaTema(localStorage.getItem("skTema") === "dark" ? "dark" : "light");
+  el("sk-theme").addEventListener("click", function () {
+    applicaTema(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+  document.querySelectorAll("[data-preset]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var p = b.getAttribute("data-preset");
+      applicaPesi(p === "file" ? W_FILE : p === "zero" ? {} : PRESET[p] || {});
+      msgPesi(p === "file" ? "Ripristinati i pesi di config/scoring.yml."
+        : "Preimpostazione applicata: resta una simulazione finché non salvi.", true);
+    });
+  });
+  el("sk-w-reset").addEventListener("click", function () {
+    if (PANEL) {
+      api("/api/pesi").then(function (j) {
+        W_FILE = j.pesi || {};
+        applicaPesi(W_FILE);
+        msgPesi("Riletti da config/scoring.yml.", true);
+      }).catch(function (e) { msgPesi("Non letti: " + e.message, false); });
+    } else {
+      applicaPesi(W_FILE);
+    }
+  });
+  el("sk-w-save").addEventListener("click", function () {
+    var pesi = {};
+    Object.keys(W).forEach(function (k) { if (W[k] > 0) pesi[k] = W[k]; });
+    api("/api/pesi", { method: "POST", headers: { "Content-Type": "application/json" },
+                       body: JSON.stringify({ pesi: pesi }) })
+      .then(function (j) {
+        var d = j.diario, parti = [];
+        ["modificati", "aggiunti", "disattivati"].forEach(function (k) {
+          if (d[k] && d[k].length) parti.push(k + ": " + d[k].join(", "));
+        });
+        W_FILE = JSON.parse(JSON.stringify(pesi));
+        statoPesi();
+        msgPesi("Salvato in config/scoring.yml. " + (parti.join(" · ") || "nessuna modifica.") +
+          " Il punteggio qui sopra è già quello nuovo; «Aggiorna i titoli» lo riscrive anche in data.json.", true);
+      })
+      .catch(function (e) { msgPesi("Non salvato: " + e.message, false); });
+  });
+  el("sk-stop").addEventListener("click", function () {
+    if (jobId) api("/api/ferma", { method: "POST", headers: { "Content-Type": "application/json" },
+                                   body: JSON.stringify({ id: jobId }) });
+  });
+  el("sk-cons-c").addEventListener("click", function () {
+    el("sk-out").textContent = "";
+    el("sk-cons-t").textContent = "Console";
+    el("sk-cons-s").textContent = "";
+  });
+
+  function senzaDati(e) {
+    var pm = VISTA === "premarket";
+    el("sk-seduta").textContent = t(pm ? "no_pre_titolo" : "no_dati_titolo");
+    el("sk-meta").textContent = "";
+    el("sk-body").innerHTML = "";
+    el("sk-disc").innerHTML = t(pm ? "senza_dati_pre" : "senza_dati", esc(e.message));
+  }
+
+  document.querySelectorAll("[data-vista]").forEach(function (b) {
+    b.addEventListener("click", function () { vaiA(b.getAttribute("data-vista")); });
+  });
+
+  // Il selettore di lingua: stessa meccanica di US Markets Daily — si scrive
+  // la scelta nel browser e si ridisegna. Qui il ridisegno passa da boot(),
+  // che rifa' testata, colonne, schede, pesi e glossario nella nuova lingua;
+  // i pesi che si stanno simulando in quel momento non si perdono.
+  function applicaLingua(nuova) {
+    LANG = nuova;
+    localStorage.setItem("skLang", LANG);
+    document.querySelectorAll("#langToggle .lang-chip").forEach(function (c) {
+      c.classList.toggle("active", c.getAttribute("data-lang") === LANG);
+    });
+    testoStatico();
+    // testoStatico() rimette la targhetta al suo valore di partenza ("non
+    // collegato"): qui si ridichiara lo stato vero, altrimenti cambiare lingua
+    // farebbe sembrare scollegato un pannello che sta funzionando.
+    el("sk-engine-state").textContent = t(PANEL ? "pannello_si" : "pannello_no");
+    el("sk-engine-state").className = "sk-badge" + (PANEL ? " ok" : "");
+    if (!window.__DATI__) disegnaAzioni(PANEL);   // i pulsanti cambiano lingua anche loro
+    if (!PANEL) {
+      var n = el("sk-nopanel");
+      if (!n.hidden) n.innerHTML = t(window.__DATI__ ? "nopanel_pubblica" : "nopanel");
+    }
+    if (D) {
+      var simulati = pesiCambiati() ? JSON.parse(JSON.stringify(W)) : null;
+      boot(D, simulati);
+    }
+  }
+  document.querySelectorAll("#langToggle .lang-chip").forEach(function (c) {
+    c.addEventListener("click", function () { applicaLingua(c.getAttribute("data-lang")); });
+  });
+  document.querySelectorAll("#langToggle .lang-chip").forEach(function (c) {
+    c.classList.toggle("active", c.getAttribute("data-lang") === LANG);
+  });
+  testoStatico();
+
+  collegaPannello().then(function () { return vaiA("chiusura"); });
+})();
+</script>
+</body>
+</html>
