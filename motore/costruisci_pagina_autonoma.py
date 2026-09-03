@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -43,12 +42,17 @@ def costruisci(sorgente: Path, dati: dict[str, Path], out: Path) -> Path:
     # </script> dentro una stringa JSON chiuderebbe il tag che la contiene:
     # e' l'unico carattere che va protetto.
     blob = json.dumps(incorporati, ensure_ascii=False).replace("</", "<\\/")
-    quando = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
+    # NIENTE ora di generazione qui dentro, di proposito. Ci stava, e faceva
+    # danno: due costruzioni con gli stessi identici dati producevano file
+    # diversi, quindi l'automazione pubblicava a ogni giro anche quando non
+    # era cambiato niente — un commit e una ricostruzione del sito per nulla.
+    # A che ora si riferiscono i dati e' scritto dentro i dati stessi
+    # (generated_at, e la seduta), che e' anche l'unico posto onesto.
     inserto = (
         "<script>\n"
-        f"/* Pagina autonoma generata il {quando}.\n"
-        "   I dati sono qui dentro: nessuna richiesta di rete, nessun server.\n"
+        "/* Pagina autonoma: i dati sono qui dentro, nessuna richiesta di rete.\n"
+        "   Le date che contano sono nei dati (generated_at, meta.sessione).\n"
         "   Si rigenera con costruisci_pagina_autonoma.py */\n"
         f"window.__DATI__ = {blob};\n"
         "</script>\n"

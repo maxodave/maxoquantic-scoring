@@ -40,16 +40,30 @@ except Exception:                                    # non dovrebbe succedere
 
 
 def eta_universo() -> float | None:
-    """Da quanti giorni non si ricalcola la classifica di liquidita'."""
+    """
+    Da quanti giorni non si ricalcola la classifica di liquidita'.
+
+    NON si guarda la data del file: la cache di GitHub, quando la rimette,
+    scrive file nuovi di zecca, quindi l'universo sembrerebbe sempre appena
+    calcolato e non verrebbe mai rifatto. L'ora vera sta dentro il file,
+    scritta dalla cache del motore quando l'ha salvato.
+    """
+    import json
+    import time
+
     p = ROOT / ".cache" / "universe"
     if not p.is_dir():
         return None
-    file = list(p.glob("*.json"))
-    if not file:
+    momenti = []
+    for f in p.glob("*.json"):
+        try:
+            momenti.append(float(json.loads(f.read_text(encoding="utf-8")).get("_ts", 0)))
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            continue
+    momenti = [m for m in momenti if m > 0]
+    if not momenti:
         return None
-    piu_recente = max(f.stat().st_mtime for f in file)
-    import time
-    return (time.time() - piu_recente) / 86400.0
+    return (time.time() - max(momenti)) / 86400.0
 
 
 def decidi(ora_ny: datetime, manuale: str = "") -> dict:

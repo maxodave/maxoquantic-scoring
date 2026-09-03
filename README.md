@@ -29,11 +29,31 @@ e la ✕ per rimuoverli.
 - Ogni metrica ha la sua scheda *Cos'è / Come si legge / Attenzione*.
 - Italiano e inglese.
 
+## Come si aggiorna
+
+Da sola, qui su GitHub: non c'è niente da tenere acceso su nessun computer.
+
+Un'azione programmata gira **quattro volte al giorno nei giorni di borsa** e
+scarica solo ciò che a quell'ora esiste — il pre-mercato prima delle 9:30 di
+New York, i prezzi di chiusura dopo le 16:00 — poi ricostruisce `index.html`
+con i dati dentro e lo pubblica.
+
+Tre accorgimenti perché non saturi niente:
+
+| | |
+|---|---|
+| **La cache viaggia fra una corsa e l'altra** | Universo (330 quote) e fondamentali (150 schede) valgono 7 giorni: una corsa normale fa ~150 richieste invece di ~500, e quella lunga capita una volta a settimana |
+| **Lo stato è la pagina stessa** | `index.html` contiene entrambi gli insiemi di dati; prima di aggiornare vengono riletti da lì. Una corsa di solo pre-mercato non fa sparire la chiusura, e se la cache viene sfrattata non si perde niente |
+| **Si pubblica solo se è cambiato qualcosa** | La pagina viene costruita in modo deterministico: dati identici, file identico, nessun commit e nessuna ricostruzione del sito |
+
+Si può anche lanciare a mano da **Actions → Aggiorna i dati → Run workflow**,
+scegliendo cosa aggiornare.
+
 ## Cos'è questa copia
 
-Una **fotografia**: i dati sono incorporati nell'HTML, quindi la pagina si apre
-ovunque e anche senza rete, ma non si aggiorna da sola e non ha i comandi. Il
-motore che scarica i prezzi e ricalcola i punteggi gira sul computer.
+I dati sono incorporati nell'HTML: la pagina si apre ovunque e continua a
+funzionare anche senza rete una volta caricata. Non ha i comandi del motore,
+perché non c'è nessun motore dietro un sito — c'è l'azione programmata.
 
 ## Avvertenze
 
