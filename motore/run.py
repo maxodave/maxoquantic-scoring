@@ -54,8 +54,15 @@ def cmd_run(args) -> int:
     # restano dove sono e il run resta di quaranta secondi invece di sette minuti.
     if getattr(args, "refresh_quotes", False):
         c = cfg.get("cache", {}) or {}
-        n = Cache(c.get("dir", ".cache"), enabled=True).clear("quote")
-        print(f"cache      : {n} quote scartate, verranno riscaricate")
+        cache = Cache(c.get("dir", ".cache"), enabled=True)
+        n = cache.clear("quote")
+        # Insieme ai prezzi si butta anche la SEDUTA. Sono la stessa cosa: se
+        # si riscaricano i prezzi perche' la borsa ha chiuso, tenere la seduta
+        # vecchia (valida sei ore) significa pubblicare i prezzi di oggi
+        # dichiarando la giornata di ieri — l'errore preciso che questa
+        # pagina esiste per non fare.
+        n += cache.clear("session")
+        print(f"cache      : {n} quote e sedute scartate, verranno riscaricate")
 
     prov = get_provider(cfg.get("provider", "yahoo"), cfg)
     top_n = int((cfg.get("universe") or {}).get("top_n", 150))
