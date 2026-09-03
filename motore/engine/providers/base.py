@@ -25,8 +25,15 @@ class Provider(Protocol):
         """Una riga per ticker, con chiavi canoniche. Valori assenti = None."""
         ...
 
-    def fetch_quotes(self, tickers: list[str], log=print) -> list[dict[str, Any]]:
-        """Solo i campi che cambiano ogni giorno: prezzo, volume, capitalizzazione."""
+    def fetch_quotes(self, tickers: list[str], log=print,
+                     completo: bool = True) -> list[dict[str, Any]]:
+        """
+        I campi che cambiano ogni giorno.
+
+        `completo=False` significa "mi basta prezzo e volume, sto solo
+        ordinando il bacino": il provider puo' usare la via piu' leggera.
+        Con `completo=True` deve esserci anche la variazione di seduta.
+        """
         ...
 
 

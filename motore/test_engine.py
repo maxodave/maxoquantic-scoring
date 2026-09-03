@@ -600,11 +600,6 @@ class TestPannelloValidazione(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import importlib.util
-        # Il pannello esiste solo nella copia di lavoro: dove il motore gira
-        # da solo (l'automazione su GitHub) non c'e', e questi test non hanno
-        # niente da validare. Saltarli e' corretto; farli fallire no.
-        if not (ROOT / "pannello.py").exists():
-            raise unittest.SkipTest("nessun pannello in questa copia: niente da validare")
         spec = importlib.util.spec_from_file_location("pannello", ROOT / "pannello.py")
         cls.P = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.P)

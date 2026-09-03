@@ -33,7 +33,8 @@ class LocalProvider:
 
     # Stessa interfaccia del provider Yahoo, così l'universo e i test girano
     # identici offline: qui quote e fondamentali stanno nello stesso file.
-    def fetch_quotes(self, tickers: list[str], log=print) -> list[dict[str, Any]]:
+    def fetch_quotes(self, tickers: list[str], log=print,
+                     completo: bool = True) -> list[dict[str, Any]]:
         return self.fetch(tickers, self._cfg)
 
     def fetch_fundamentals(self, tickers: list[str], log=print) -> list[dict[str, Any]]:

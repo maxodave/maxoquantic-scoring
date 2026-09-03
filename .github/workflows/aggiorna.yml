@@ -80,6 +80,12 @@ jobs:
       # Lo stato della pagina e' la pagina: index.html contiene entrambi gli
       # insiemi di dati, quindi si rileggono da li'. Cosi' una corsa che
       # aggiorna solo il pre-mercato non fa sparire la chiusura.
+      # I test girano prima di toccare la rete: se il motore e' rotto e' meglio
+      # saperlo qui che scoprirlo da una pagina pubblicata con numeri sbagliati.
+      - name: Test del motore
+        working-directory: motore
+        run: python -m unittest discover -s tests
+
       - name: Rimetti i dati della pagina pubblicata
         working-directory: motore
         run: python ripristina_dati.py

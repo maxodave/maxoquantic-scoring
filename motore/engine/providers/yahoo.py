@@ -164,35 +164,54 @@ class YahooProvider:
 
     # ------------------------------------------------------- quote (giornaliere)
     def fetch_quotes(self, tickers: list[str],
-                     log: Callable[[str], None] = print) -> list[dict[str, Any]]:
+                     log: Callable[[str], None] = print,
+                     completo: bool = True) -> list[dict[str, Any]]:
         """
-        Solo prezzo, volume, volume medio e capitalizzazione. Usa `fast_info`,
-        che è la via più leggera, con ripiego su `info` se non disponibile.
+        I dati che cambiano ogni giorno. Due modalita', per due usi diversi.
+
+        `completo=False` — solo prezzo, volume e capitalizzazione, presi da
+        `fast_info`: e' la via leggera, e serve a ordinare il bacino di 330
+        candidati per denaro scambiato. Li' della variazione non importa a
+        nessuno: si moltiplica prezzo per volume e si taglia.
+
+        `completo=True` — anche la VARIAZIONE DI SEDUTA, che `fast_info` non
+        sa dare. Ha `previousClose`, ma non e' la chiusura precedente vera:
+        su NVIDIA dava 225,35 contro i 224,41 reali, cioe' +0,89% invece di
+        +1,31%. Un errore piccolo in assoluto e inaccettabile qui, perche'
+        finirebbe in una colonna che si chiama "Variazione %".
+
+        Le due modalita' hanno CACHE SEPARATE: una riga leggera salvata dal
+        bacino non deve poter essere riletta come se fosse completa. E' il
+        difetto che ha fatto pubblicare per mezza giornata la variazione di
+        ieri accanto al prezzo di oggi.
         """
+        tipo = "quote" if completo else "quote_veloce"
         rows, from_cache, errors = [], 0, 0
         for i, sym in enumerate(tickers):
-            hit = self.cache.get("quote", sym, self.ttl_quote)
+            hit = self.cache.get(tipo, sym, self.ttl_quote)
             if hit is not None:
                 rows.append(hit)
                 from_cache += 1
                 continue
             try:
-                row = self._retry(lambda s=sym: self._quote_one(s), f"quota {sym}", log)
+                row = self._retry(lambda s=sym: self._quote_one(s, completo),
+                                  f"quota {sym}", log)
             except Exception as e:
                 rows.append({"symbol": sym, "_error": f"{type(e).__name__}: {e}"})
                 errors += 1
                 continue
-            self.cache.put("quote", sym, row)
+            self.cache.put(tipo, sym, row)
             rows.append(row)
             if self.pause and i < len(tickers) - 1:
                 time.sleep(self.pause)
 
         scaricate = len(tickers) - from_cache - errors
         log(f"quote      : {scaricate} scaricate, {from_cache} dalla cache"
-            + (f", {errors} in errore" if errors else ""))
+            + (f", {errors} in errore" if errors else "")
+            + ("" if completo else "  (solo prezzo e volume: serve a ordinare il bacino)"))
         return rows
 
-    def _quote_one(self, sym: str) -> dict[str, Any]:
+    def _quote_one(self, sym: str, completo: bool = True) -> dict[str, Any]:
         t = self.yf.Ticker(sym)
         row: dict[str, Any] = {"symbol": sym, "_source": "yahoo"}
 
@@ -222,8 +241,10 @@ class YahooProvider:
             row["week52_high"] = _clean(g(fi, "year_high", "yearHigh"))
             row["week52_low"] = _clean(g(fi, "year_low", "yearLow"))
 
-        # se fast_info non ha coperto tutto, si ricade su info (più pesante)
-        if row.get("price") is None or row.get("volume") is None:
+        # `info` e' piu' pesante ma e' l'unico posto dove la variazione di
+        # seduta e' quella vera. Si chiede quando serve un dato completo, o
+        # quando fast_info non ha coperto nemmeno prezzo e volume.
+        if completo or row.get("price") is None or row.get("volume") is None:
             info = t.info or {}
             row["price"] = row.get("price") or _clean(info.get("regularMarketPrice"))
             row["volume"] = row.get("volume") or _clean(info.get("regularMarketVolume"))
