@@ -9,9 +9,9 @@
 #
 #  Perche' non satura niente: la cache di GitHub porta avanti universo e
 #  fondamentali (validi 7 giorni), cosi' una corsa normale tocca la rete per
-#  ~150 richieste invece di ~500. Le corse sono 4 al giorno nei giorni di
-#  borsa: molto sotto il limite di Pages (10 build all'ora) e lontanissime dal
-#  punto in cui Yahoo comincia a rispondere 429.
+#  ~150 richieste invece di ~500. Le corse sono 8 al giorno nei giorni di
+#  borsa, mai due nella stessa ora: molto sotto il limite di Pages (10 build
+#  all'ora) e lontanissime dal punto in cui Yahoo comincia a rispondere 429.
 # ============================================================================
 name: Aggiorna i dati
 
@@ -29,7 +29,6 @@ on:
     #     seduta        UTC 14:30 - 20:00
     #     a borsa chiusa UTC >= 21:00
     #
-    - cron: "15 16 * * *"    # PROVA TEMPORANEA: verifica che il calendario parta davvero
     - cron: "30 11 * * 1-5"   # 07:30 EDT / 06:30 EST — pre-mercato, presto
     - cron: "15 13 * * 1-5"   # 09:15 EDT / 08:15 EST — pre-mercato, poco prima dell'apertura
     - cron: "35 14 * * 1-5"   # 10:35 EDT / 09:35 EST — seduta, dopo l'apertura
