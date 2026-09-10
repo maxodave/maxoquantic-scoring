@@ -19,7 +19,10 @@ e la ✕ per rimuoverli.
 
 ## Cosa c'è dentro
 
-- **Chiusura di ieri** e **Pre-mercato**, due sezioni con gli stessi strumenti.
+- **Chiusura** e **Pre-mercato**, due sezioni con gli stessi strumenti. A borsa
+  aperta la prima si muove insieme alla seduta, e cambia nome per non chiamare
+  «chiusura» dei prezzi che stanno ancora correndo: il pallino rosso sta sulla
+  sezione viva.
 - **La seduta è dichiarata in testata** — un aggiornamento fatto la mattina in
   Italia pubblica la chiusura del giorno prima a New York, e la data del file
   direbbe un'altra cosa.
@@ -33,10 +36,18 @@ e la ✕ per rimuoverli.
 
 Da sola, qui su GitHub: non c'è niente da tenere acceso su nessun computer.
 
-Un'azione programmata gira **quattro volte al giorno nei giorni di borsa** e
-scarica solo ciò che a quell'ora esiste — il pre-mercato prima delle 9:30 di
-New York, i prezzi di chiusura dopo le 16:00 — poi ricostruisce `index.html`
-con i dati dentro e lo pubblica.
+Un'azione programmata gira **otto volte al giorno nei giorni di borsa** e
+scarica solo ciò che a quell'ora esiste, poi ricostruisce `index.html` con i
+dati dentro e lo pubblica.
+
+| fascia | corse | cosa scarica |
+|---|---|---|
+| prima dell'apertura | 2 | il pre-mercato |
+| a borsa aperta | 4 | i prezzi della seduta, mentre si muovono |
+| dopo la chiusura | 2 | i prezzi di chiusura, la seconda a chiusura consolidata |
+
+Gli orari sono scritti in UTC, che non segue l'ora legale: sono scelti perché
+restino nella fascia giusta sia d'estate sia d'inverno.
 
 Tre accorgimenti perché non saturi niente:
 
